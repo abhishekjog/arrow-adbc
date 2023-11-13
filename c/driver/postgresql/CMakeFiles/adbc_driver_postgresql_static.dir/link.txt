@@ -1,0 +1,2 @@
+/usr/bin/ar qc libadbc_driver_postgresql.a CMakeFiles/adbc_driver_postgresql_objlib.dir/connection.cc.o CMakeFiles/adbc_driver_postgresql_objlib.dir/error.cc.o CMakeFiles/adbc_driver_postgresql_objlib.dir/database.cc.o CMakeFiles/adbc_driver_postgresql_objlib.dir/postgresql.cc.o CMakeFiles/adbc_driver_postgresql_objlib.dir/result_helper.cc.o CMakeFiles/adbc_driver_postgresql_objlib.dir/statement.cc.o
+/usr/bin/ranlib libadbc_driver_postgresql.a

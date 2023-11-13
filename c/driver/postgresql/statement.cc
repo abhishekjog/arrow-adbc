@@ -241,6 +241,7 @@ struct BindStream {
                          const bool autocommit) {
     // tz-aware timestamps require special handling to set the timezone to UTC
     // prior to sending over the binary protocol; must be reset after execute
+    /*
     for (int64_t col = 0; col < bind_schema->n_children; col++) {
       if ((bind_schema_fields[col].type == ArrowType::NANOARROW_TYPE_TIMESTAMP) &&
           (strcmp("", bind_schema_fields[col].timezone))) {
@@ -283,10 +284,10 @@ struct BindStream {
         break;
       }
     }
-
-    PGresult* result = PQprepare(conn, /*stmtName=*/"", query.c_str(),
-                                 /*nParams=*/bind_schema->n_children, param_types.data());
-    if (PQresultStatus(result) != PGRES_COMMAND_OK) {
+    */
+    //PGresult* result = PQprepare(conn, /*stmtName=*/"", query.c_str(),
+    //                             /*nParams=*/bind_schema->n_children, param_types.data());
+    /*if (PQresultStatus(result) != PGRES_COMMAND_OK) {
       AdbcStatusCode code =
           SetError(error, result, "[libpq] Failed to prepare query: %s\nQuery was:%s",
                    PQerrorMessage(conn), query.c_str());
@@ -294,6 +295,7 @@ struct BindStream {
       return code;
     }
     PQclear(result);
+    */
     return ADBC_STATUS_OK;
   }
 

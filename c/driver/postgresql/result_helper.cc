@@ -30,38 +30,37 @@ PqResultHelper::~PqResultHelper() {
 
 AdbcStatusCode PqResultHelper::Prepare() {
   // TODO: make stmtName a unique identifier?
-  PGresult* result =
-      PQprepare(conn_, /*stmtName=*/"", query_.c_str(), param_values_.size(), NULL);
-  if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-    AdbcStatusCode code =
-        SetError(error_, result, "[libpq] Failed to prepare query: %s\nQuery was:%s",
-                 PQerrorMessage(conn_), query_.c_str());
-    PQclear(result);
-    return code;
-  }
+  ///*PGresult* result =
+  //    PQprepare(conn_, /*stmtName=*/"", query_.c_str(), param_values_.size(), NULL);
+  //if (PQresultStatus(result) != PGRES_COMMAND_OK) {
+  //  AdbcStatusCode code =
+  //      SetError(error_, result, "[libpq] Failed to prepare query: %s\nQuery was:%s",
+  //               PQerrorMessage(conn_), query_.c_str());
+  //  PQclear(result);
+  //  return code;
+  //}
 
-  PQclear(result);
+  //PQclear(result);
   return ADBC_STATUS_OK;
 }
 
 AdbcStatusCode PqResultHelper::Execute() {
-  std::vector<const char*> param_c_strs;
+  //std::vector<const char*> param_c_strs;
 
-  for (size_t index = 0; index < param_values_.size(); index++) {
-    param_c_strs.push_back(param_values_[index].c_str());
-  }
+  //for (size_t index = 0; index < param_values_.size(); index++) {
+  //  param_c_strs.push_back(param_values_[index].c_str());
+  //}
 
-  result_ =
-      PQexecPrepared(conn_, "", param_values_.size(), param_c_strs.data(), NULL, NULL, 0);
+  //result_ =
+  //    PQexecPrepared(conn_, "", param_values_.size(), param_c_strs.data(), NULL, NULL, 0);
 
-  ExecStatusType status = PQresultStatus(result_);
-  if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) {
-    AdbcStatusCode error =
-        SetError(error_, result_, "[libpq] Failed to execute query '%s': %s",
-                 query_.c_str(), PQerrorMessage(conn_));
-    return error;
-  }
-
+  //ExecStatusType status = PQresultStatus(result_);
+  //if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) {
+  //  AdbcStatusCode error =
+  //      SetError(error_, result_, "[libpq] Failed to execute query '%s': %s",
+  //               query_.c_str(), PQerrorMessage(conn_));
+  //  return error;
+  //}
   return ADBC_STATUS_OK;
 }
 

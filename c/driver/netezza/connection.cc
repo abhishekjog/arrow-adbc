@@ -1281,7 +1281,7 @@ AdbcStatusCode PostgresConnection::Init(struct AdbcDatabase* database,
 
   RAISE_ADBC(database_->Connect(&conn_, error));
 
-  RAISE_ADBC(database_->SetConnOptionInternal(&conn_, CLIENT_VERSION.c_str(), NZ_CLIENT_VERSION, error));
+  RAISE_ADBC(database_->SetConnOptionInternal(&conn_, CLIENT_VERSION.c_str(), NZ_CLIENT_VERSION.c_str(), error));
 
   std::ignore = PQsetNoticeProcessor(conn_, SilentNoticeProcessor, nullptr);
 

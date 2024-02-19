@@ -661,7 +661,7 @@ namespace adbcpq {
         case NetezzaTypeId::kBpchar:
         case NetezzaTypeId::kName:
         case NetezzaTypeId::kNchar:
-        case NetezzaTypeId::kNchar:
+        case NetezzaTypeId::kNvarchar:
         case NetezzaTypeId::kJson:
         case NetezzaTypeId::kJsonb:
         case NetezzaTypeId::kJsonpath:

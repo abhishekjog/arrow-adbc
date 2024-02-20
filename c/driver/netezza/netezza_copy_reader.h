@@ -33,8 +33,8 @@
 #include <nanoarrow/nanoarrow.hpp>
 
 #include "common/utils.h"
-#include "postgres_type.h"
-#include "postgres_util.h"
+#include "netezza_type.h"
+#include "netezza_util.h"
 
 // R 3.6 / Windows builds on a very old toolchain that does not define ENODATA
 #if defined(_WIN32) && !defined(MSVC) && !defined(ENODATA)
@@ -73,7 +73,7 @@ constexpr int64_t kMaxSafeMicrosToNanos = 9223372036854775L;
 constexpr int64_t kMinSafeMicrosToNanos = -9223372036854775L;
 
 // 2000-01-01 00:00:00.000000 in microseconds
-constexpr int64_t kPostgresTimestampEpoch = 946684800000000L;
+constexpr int64_t kNetezzaTimestampEpoch = 946684800000000L;
 
 // Read a value from the buffer without checking the buffer size. Advances
 // the cursor of data and reduces its size by sizeof(T).
@@ -160,11 +160,11 @@ ArrowErrorCode WriteChecked(ArrowBuffer* buffer, T in, ArrowError* error) {
         return NANOARROW_OK;
 }
 
-class PostgresCopyFieldReader {
+class NetezzaCopyFieldReader {
  public:
-        PostgresCopyFieldReader() : validity_(nullptr), offsets_(nullptr), data_(nullptr) {};
+        NetezzaCopyFieldReader() : validity_(nullptr), offsets_(nullptr), data_(nullptr) {};
 
-        virtual ~PostgresCopyFieldReader() {};
+        virtual ~NetezzaCopyFieldReader() {};
         void Init(const NetezzaType& pg_type);
         const NetezzaType& InputType() const;
         virtual ArrowErrorCode InitSchema(ArrowSchema* schema);
@@ -179,13 +179,13 @@ class PostgresCopyFieldReader {
         ArrowBitmap* validity_;
         ArrowBuffer* offsets_;
         ArrowBuffer* data_;
-        std::vector<std::unique_ptr<PostgresCopyFieldReader>> children_;
+        std::vector<std::unique_ptr<NetezzaCopyFieldReader>> children_;
 
         ArrowErrorCode AppendValid(ArrowArray* array);
 };
 
-// Reader for a Postgres boolean (one byte -> bitmap)
-class PostgresCopyBooleanFieldReader : public PostgresCopyFieldReader {
+// Reader for a Netezza boolean (one byte -> bitmap)
+class NetezzaCopyBooleanFieldReader : public NetezzaCopyFieldReader {
  public:
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
@@ -194,40 +194,40 @@ class PostgresCopyBooleanFieldReader : public PostgresCopyFieldReader {
 // Reader for Pg->Arrow conversions whose representations are identical minus
 // the bswap from network endian. This includes all integral and float types.
 template <typename T, T kOffset = 0>
-class PostgresCopyNetworkEndianFieldReader : public PostgresCopyFieldReader {
+class NetezzaCopyNetworkEndianFieldReader : public NetezzaCopyFieldReader {
  public:
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
 };
 
 // Reader for Intervals
-class PostgresCopyIntervalFieldReader : public PostgresCopyFieldReader {
+class NetezzaCopyIntervalFieldReader : public NetezzaCopyFieldReader {
  public:
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
 };
 
-// // Converts COPY resulting from the Postgres NUMERIC type into a string.
-// Rewritten based on the Postgres implementation of NUMERIC cast to string in
+// // Converts COPY resulting from the Netezza NUMERIC type into a string.
+// Rewritten based on the Netezza implementation of NUMERIC cast to string in
 // src/backend/utils/adt/numeric.c : get_str_from_var() (Note that in the initial source,
 // DEC_DIGITS is always 4 and DBASE is always 10000).
 //
-// Briefly, the Postgres representation of "numeric" is an array of int16_t ("digits")
+// Briefly, the Netezza representation of "numeric" is an array of int16_t ("digits")
 // from most significant to least significant. Each "digit" is a value between 0000 and
 // 9999. There are weight + 1 digits before the decimal point and dscale digits after the
 // decimal point. Both of those values can be zero or negative. A "sign" component
 // encodes the positive or negativeness of the value and is also used to encode special
 // values (inf, -inf, and nan).
-class PostgresCopyNumericFieldReader : public PostgresCopyFieldReader {
+class NetezzaCopyNumericFieldReader : public NetezzaCopyFieldReader {
  public:
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
  private:
         std::vector<int16_t> digits_;
 
-        // Number of decimal digits per Postgres digit
+        // Number of decimal digits per Netezza digit
         static const int kDecDigits = 4;
-        // The "base" of the Postgres representation (i.e., each "digit" is 0 to 9999)
+        // The "base" of the Netezza representation (i.e., each "digit" is 0 to 9999)
         static const int kNBase = 10000;
         // Valid values for the sign component
         static const uint16_t kNumericPos = 0x0000;
@@ -239,50 +239,50 @@ class PostgresCopyNumericFieldReader : public PostgresCopyFieldReader {
 
 // Reader for Pg->Arrow conversions whose Arrow representation is simply the
 // bytes of the field representation. This can be used with binary and string
-// Arrow types and any Postgres type.
-class PostgresCopyBinaryFieldReader : public PostgresCopyFieldReader {
+// Arrow types and any Netezza type.
+class NetezzaCopyBinaryFieldReader : public NetezzaCopyFieldReader {
  public:
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override; 
 };
 
-class PostgresCopyArrayFieldReader : public PostgresCopyFieldReader {
+class NetezzaCopyArrayFieldReader : public NetezzaCopyFieldReader {
  public:
-        void InitChild(std::unique_ptr<PostgresCopyFieldReader> child);
+        void InitChild(std::unique_ptr<NetezzaCopyFieldReader> child);
         ArrowErrorCode InitSchema(ArrowSchema* schema) override;
         ArrowErrorCode InitArray(ArrowArray* array) override;
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
  private:
-        std::unique_ptr<PostgresCopyFieldReader> child_;
+        std::unique_ptr<NetezzaCopyFieldReader> child_;
 };
 
-class PostgresCopyRecordFieldReader : public PostgresCopyFieldReader {
+class NetezzaCopyRecordFieldReader : public NetezzaCopyFieldReader {
  public:
-        void AppendChild(std::unique_ptr<PostgresCopyFieldReader> child);
+        void AppendChild(std::unique_ptr<NetezzaCopyFieldReader> child);
         ArrowErrorCode InitSchema(ArrowSchema* schema) override;
         ArrowErrorCode InitArray(ArrowArray* array) override;
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
  private:
-        std::vector<std::unique_ptr<PostgresCopyFieldReader>> children_;
+        std::vector<std::unique_ptr<NetezzaCopyFieldReader>> children_;
 };
 
 // Subtely different from a Record field item: field count is an int16_t
 // instead of an int32_t and each field is not prefixed by its OID.
-class PostgresCopyFieldTupleReader : public PostgresCopyFieldReader {
+class NetezzaCopyFieldTupleReader : public NetezzaCopyFieldReader {
  public:
-        void AppendChild(std::unique_ptr<PostgresCopyFieldReader> child);
+        void AppendChild(std::unique_ptr<NetezzaCopyFieldReader> child);
         ArrowErrorCode InitSchema(ArrowSchema* schema) override;
         ArrowErrorCode InitArray(ArrowArray* array) override;
         ArrowErrorCode Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
               ArrowError* error) override;
  private:
-        std::vector<std::unique_ptr<PostgresCopyFieldReader>> children_;
+        std::vector<std::unique_ptr<NetezzaCopyFieldReader>> children_;
 };
 
-// Factory for a PostgresCopyFieldReader that instantiates the proper subclass
-// and gives a nice error for Postgres type -> Arrow type conversions that aren't
+// Factory for a NetezzaCopyFieldReader that instantiates the proper subclass
+// and gives a nice error for Netezza type -> Arrow type conversions that aren't
 // supported.
  ArrowErrorCode ErrorCantConvert(ArrowError* error,
         			      const NetezzaType& pg_type,
@@ -290,10 +290,10 @@ class PostgresCopyFieldTupleReader : public PostgresCopyFieldReader {
 
  ArrowErrorCode MakeCopyFieldReader(const NetezzaType& pg_type,
         				 ArrowSchema* schema,
-        				 PostgresCopyFieldReader** out,
+        				 NetezzaCopyFieldReader** out,
         				 ArrowError* error);
 
-class PostgresCopyStreamReader {
+class NetezzaCopyStreamReader {
  public:
         ArrowErrorCode Init(NetezzaType pg_type);
         int64_t array_size_approx_bytes() const;
@@ -308,15 +308,15 @@ class PostgresCopyStreamReader {
 
  private:
         NetezzaType pg_type_;
-        PostgresCopyFieldTupleReader root_reader_;
+        NetezzaCopyFieldTupleReader root_reader_;
         nanoarrow::UniqueSchema schema_;
         nanoarrow::UniqueArray array_;
         int64_t array_size_approx_bytes_;
 };
 
-class PostgresCopyFieldWriter {
+class NetezzaCopyFieldWriter {
  public:
-        virtual ~PostgresCopyFieldWriter() {};
+        virtual ~NetezzaCopyFieldWriter() {};
 
         void Init(struct ArrowArrayView* array_view);
 
@@ -324,70 +324,70 @@ class PostgresCopyFieldWriter {
 
  protected:
         struct ArrowArrayView* array_view_;
-        std::vector<std::unique_ptr<PostgresCopyFieldWriter>> children_;
+        std::vector<std::unique_ptr<NetezzaCopyFieldWriter>> children_;
 };
 
-class PostgresCopyFieldTupleWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyFieldTupleWriter : public NetezzaCopyFieldWriter {
  public:
-        void AppendChild(std::unique_ptr<PostgresCopyFieldWriter> child);
+        void AppendChild(std::unique_ptr<NetezzaCopyFieldWriter> child);
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
  private:
-        std::vector<std::unique_ptr<PostgresCopyFieldWriter>> children_;
+        std::vector<std::unique_ptr<NetezzaCopyFieldWriter>> children_;
 };
 
-class PostgresCopyBooleanFieldWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyBooleanFieldWriter : public NetezzaCopyFieldWriter {
  public:
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
 };
 
 template <typename T, T kOffset = 0>
-class PostgresCopyNetworkEndianFieldWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyNetworkEndianFieldWriter : public NetezzaCopyFieldWriter {
  public:
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
 };
 
-class PostgresCopyFloatFieldWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyFloatFieldWriter : public NetezzaCopyFieldWriter {
  public:
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
 };
 
-class PostgresCopyDoubleFieldWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyDoubleFieldWriter : public NetezzaCopyFieldWriter {
  public:
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
 };
 
-class PostgresCopyIntervalFieldWriter : public PostgresCopyFieldWriter {
- public:
-        ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
-};
-
-template <enum ArrowTimeUnit TU>
-class PostgresCopyDurationFieldWriter : public PostgresCopyFieldWriter {
- public:
-        ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
-};
-
-class PostgresCopyBinaryFieldWriter : public PostgresCopyFieldWriter {
- public:
-        ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
-};
-
-class PostgresCopyBinaryDictFieldWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyIntervalFieldWriter : public NetezzaCopyFieldWriter {
  public:
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
 };
 
 template <enum ArrowTimeUnit TU>
-class PostgresCopyTimestampFieldWriter : public PostgresCopyFieldWriter {
+class NetezzaCopyDurationFieldWriter : public NetezzaCopyFieldWriter {
+ public:
+        ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
+};
+
+class NetezzaCopyBinaryFieldWriter : public NetezzaCopyFieldWriter {
+ public:
+        ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
+};
+
+class NetezzaCopyBinaryDictFieldWriter : public NetezzaCopyFieldWriter {
+ public:
+        ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
+};
+
+template <enum ArrowTimeUnit TU>
+class NetezzaCopyTimestampFieldWriter : public NetezzaCopyFieldWriter {
  public:
         ArrowErrorCode Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) override;
 };
 
  ArrowErrorCode MakeCopyFieldWriter(struct ArrowSchema* schema,
-        				 PostgresCopyFieldWriter** out,
+        				 NetezzaCopyFieldWriter** out,
         				 ArrowError* error);
 
-class PostgresCopyStreamWriter {
+class NetezzaCopyStreamWriter {
  public:
             ArrowErrorCode Init(struct ArrowSchema* schema);
         ArrowErrorCode SetArray(struct ArrowArray* array);
@@ -402,7 +402,7 @@ class PostgresCopyStreamWriter {
         void Rewind();
 
  private:
-        PostgresCopyFieldTupleWriter root_writer_;
+        NetezzaCopyFieldTupleWriter root_writer_;
         struct ArrowSchema* schema_;
         Handle<struct ArrowArrayView> array_view_;
         Handle<struct ArrowBuffer> buffer_;

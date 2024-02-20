@@ -27,9 +27,9 @@
 #include "database.h"
 #include "statement.h"
 
-using adbcpq::PostgresConnection;
-using adbcpq::PostgresDatabase;
-using adbcpq::PostgresStatement;
+using adbcpq::NetezzaConnection;
+using adbcpq::NetezzaDatabase;
+using adbcpq::NetezzaStatement;
 
 // ---------------------------------------------------------------------
 // ADBC interface implementation - as private functions so that these
@@ -51,7 +51,7 @@ using adbcpq::PostgresStatement;
 // AdbcError
 
 namespace {
-const struct AdbcError* PostgresErrorFromArrayStream(struct ArrowArrayStream* stream,
+const struct AdbcError* NetezzaErrorFromArrayStream(struct ArrowArrayStream* stream,
                                                      AdbcStatusCode* status) {
   // Currently only valid for TupleReader
   return adbcpq::TupleReader::ErrorFromArrayStream(stream, status);
@@ -68,21 +68,21 @@ struct AdbcErrorDetail AdbcErrorGetDetail(const struct AdbcError* error, int ind
 
 const struct AdbcError* AdbcErrorFromArrayStream(struct ArrowArrayStream* stream,
                                                  AdbcStatusCode* status) {
-  return PostgresErrorFromArrayStream(stream, status);
+  return NetezzaErrorFromArrayStream(stream, status);
 }
 
 // ---------------------------------------------------------------------
 // AdbcDatabase
 
 namespace {
-AdbcStatusCode PostgresDatabaseInit(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseInit(struct AdbcDatabase* database,
                                     struct AdbcError* error) {
   if (!database || !database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->Init(error);
 }
 
-AdbcStatusCode PostgresDatabaseNew(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseNew(struct AdbcDatabase* database,
                                    struct AdbcError* error) {
   if (!database) {
     SetError(error, "%s", "[libpq] database must not be null");
@@ -92,81 +92,81 @@ AdbcStatusCode PostgresDatabaseNew(struct AdbcDatabase* database,
     SetError(error, "%s", "[libpq] database is already initialized");
     return ADBC_STATUS_INVALID_STATE;
   }
-  auto impl = std::make_shared<PostgresDatabase>();
-  database->private_data = new std::shared_ptr<PostgresDatabase>(impl);
+  auto impl = std::make_shared<NetezzaDatabase>();
+  database->private_data = new std::shared_ptr<NetezzaDatabase>(impl);
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresDatabaseRelease(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseRelease(struct AdbcDatabase* database,
                                        struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   AdbcStatusCode status = (*ptr)->Release(error);
   delete ptr;
   database->private_data = nullptr;
   return status;
 }
 
-AdbcStatusCode PostgresDatabaseGetOption(struct AdbcDatabase* database, const char* key,
+AdbcStatusCode NetezzaDatabaseGetOption(struct AdbcDatabase* database, const char* key,
                                          char* value, size_t* length,
                                          struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->GetOption(key, value, length, error);
 }
 
-AdbcStatusCode PostgresDatabaseGetOptionBytes(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseGetOptionBytes(struct AdbcDatabase* database,
                                               const char* key, uint8_t* value,
                                               size_t* length, struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->GetOptionBytes(key, value, length, error);
 }
 
-AdbcStatusCode PostgresDatabaseGetOptionDouble(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseGetOptionDouble(struct AdbcDatabase* database,
                                                const char* key, double* value,
                                                struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->GetOptionDouble(key, value, error);
 }
 
-AdbcStatusCode PostgresDatabaseGetOptionInt(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseGetOptionInt(struct AdbcDatabase* database,
                                             const char* key, int64_t* value,
                                             struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->GetOptionInt(key, value, error);
 }
 
-AdbcStatusCode PostgresDatabaseSetOption(struct AdbcDatabase* database, const char* key,
+AdbcStatusCode NetezzaDatabaseSetOption(struct AdbcDatabase* database, const char* key,
                                          const char* value, struct AdbcError* error) {
   if (!database || !database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->SetOption(key, value, error);
 }
 
-AdbcStatusCode PostgresDatabaseSetOptionBytes(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseSetOptionBytes(struct AdbcDatabase* database,
                                               const char* key, const uint8_t* value,
                                               size_t length, struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->SetOptionBytes(key, value, length, error);
 }
 
-AdbcStatusCode PostgresDatabaseSetOptionDouble(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseSetOptionDouble(struct AdbcDatabase* database,
                                                const char* key, double value,
                                                struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->SetOptionDouble(key, value, error);
 }
 
-AdbcStatusCode PostgresDatabaseSetOptionInt(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaDatabaseSetOptionInt(struct AdbcDatabase* database,
                                             const char* key, int64_t value,
                                             struct AdbcError* error) {
   if (!database->private_data) return ADBC_STATUS_INVALID_STATE;
-  auto ptr = reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+  auto ptr = reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   return (*ptr)->SetOptionInt(key, value, error);
 }
 }  // namespace
@@ -174,193 +174,193 @@ AdbcStatusCode PostgresDatabaseSetOptionInt(struct AdbcDatabase* database,
 AdbcStatusCode AdbcDatabaseGetOption(struct AdbcDatabase* database, const char* key,
                                      char* value, size_t* length,
                                      struct AdbcError* error) {
-  return PostgresDatabaseGetOption(database, key, value, length, error);
+  return NetezzaDatabaseGetOption(database, key, value, length, error);
 }
 
 AdbcStatusCode AdbcDatabaseGetOptionBytes(struct AdbcDatabase* database, const char* key,
                                           uint8_t* value, size_t* length,
                                           struct AdbcError* error) {
-  return PostgresDatabaseGetOptionBytes(database, key, value, length, error);
+  return NetezzaDatabaseGetOptionBytes(database, key, value, length, error);
 }
 
 AdbcStatusCode AdbcDatabaseGetOptionInt(struct AdbcDatabase* database, const char* key,
                                         int64_t* value, struct AdbcError* error) {
-  return PostgresDatabaseGetOptionInt(database, key, value, error);
+  return NetezzaDatabaseGetOptionInt(database, key, value, error);
 }
 
 AdbcStatusCode AdbcDatabaseGetOptionDouble(struct AdbcDatabase* database, const char* key,
                                            double* value, struct AdbcError* error) {
-  return PostgresDatabaseGetOptionDouble(database, key, value, error);
+  return NetezzaDatabaseGetOptionDouble(database, key, value, error);
 }
 
 AdbcStatusCode AdbcDatabaseInit(struct AdbcDatabase* database, struct AdbcError* error) {
-  return PostgresDatabaseInit(database, error);
+  return NetezzaDatabaseInit(database, error);
 }
 
 AdbcStatusCode AdbcDatabaseNew(struct AdbcDatabase* database, struct AdbcError* error) {
-  return PostgresDatabaseNew(database, error);
+  return NetezzaDatabaseNew(database, error);
 }
 
 AdbcStatusCode AdbcDatabaseRelease(struct AdbcDatabase* database,
                                    struct AdbcError* error) {
-  return PostgresDatabaseRelease(database, error);
+  return NetezzaDatabaseRelease(database, error);
 }
 
 AdbcStatusCode AdbcDatabaseSetOption(struct AdbcDatabase* database, const char* key,
                                      const char* value, struct AdbcError* error) {
-  return PostgresDatabaseSetOption(database, key, value, error);
+  return NetezzaDatabaseSetOption(database, key, value, error);
 }
 
 AdbcStatusCode AdbcDatabaseSetOptionBytes(struct AdbcDatabase* database, const char* key,
                                           const uint8_t* value, size_t length,
                                           struct AdbcError* error) {
-  return PostgresDatabaseSetOptionBytes(database, key, value, length, error);
+  return NetezzaDatabaseSetOptionBytes(database, key, value, length, error);
 }
 
 AdbcStatusCode AdbcDatabaseSetOptionInt(struct AdbcDatabase* database, const char* key,
                                         int64_t value, struct AdbcError* error) {
-  return PostgresDatabaseSetOptionInt(database, key, value, error);
+  return NetezzaDatabaseSetOptionInt(database, key, value, error);
 }
 
 AdbcStatusCode AdbcDatabaseSetOptionDouble(struct AdbcDatabase* database, const char* key,
                                            double value, struct AdbcError* error) {
-  return PostgresDatabaseSetOptionDouble(database, key, value, error);
+  return NetezzaDatabaseSetOptionDouble(database, key, value, error);
 }
 
 // ---------------------------------------------------------------------
 // AdbcConnection
 
 namespace {
-AdbcStatusCode PostgresConnectionCancel(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionCancel(struct AdbcConnection* connection,
                                         struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->Cancel(error);
 }
 
-AdbcStatusCode PostgresConnectionCommit(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionCommit(struct AdbcConnection* connection,
                                         struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->Commit(error);
 }
 
-AdbcStatusCode PostgresConnectionGetInfo(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetInfo(struct AdbcConnection* connection,
                                          const uint32_t* info_codes,
                                          size_t info_codes_length,
                                          struct ArrowArrayStream* stream,
                                          struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetInfo(connection, info_codes, info_codes_length, stream, error);
 }
 
-AdbcStatusCode PostgresConnectionGetObjects(
+AdbcStatusCode NetezzaConnectionGetObjects(
     struct AdbcConnection* connection, int depth, const char* catalog,
     const char* db_schema, const char* table_name, const char** table_types,
     const char* column_name, struct ArrowArrayStream* stream, struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetObjects(connection, depth, catalog, db_schema, table_name,
                             table_types, column_name, stream, error);
 }
 
-AdbcStatusCode PostgresConnectionGetOption(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetOption(struct AdbcConnection* connection,
                                            const char* key, char* value, size_t* length,
                                            struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetOption(key, value, length, error);
 }
 
-AdbcStatusCode PostgresConnectionGetOptionBytes(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetOptionBytes(struct AdbcConnection* connection,
                                                 const char* key, uint8_t* value,
                                                 size_t* length, struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetOptionBytes(key, value, length, error);
 }
 
-AdbcStatusCode PostgresConnectionGetOptionDouble(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetOptionDouble(struct AdbcConnection* connection,
                                                  const char* key, double* value,
                                                  struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetOptionDouble(key, value, error);
 }
 
-AdbcStatusCode PostgresConnectionGetOptionInt(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetOptionInt(struct AdbcConnection* connection,
                                               const char* key, int64_t* value,
                                               struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetOptionInt(key, value, error);
 }
 
-AdbcStatusCode PostgresConnectionGetStatistics(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetStatistics(struct AdbcConnection* connection,
                                                const char* catalog, const char* db_schema,
                                                const char* table_name, char approximate,
                                                struct ArrowArrayStream* out,
                                                struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetStatistics(catalog, db_schema, table_name, approximate == 1, out,
                                error);
 }
 
-AdbcStatusCode PostgresConnectionGetStatisticNames(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetStatisticNames(struct AdbcConnection* connection,
                                                    struct ArrowArrayStream* out,
                                                    struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetStatisticNames(out, error);
 }
 
-AdbcStatusCode PostgresConnectionGetTableSchema(
+AdbcStatusCode NetezzaConnectionGetTableSchema(
     struct AdbcConnection* connection, const char* catalog, const char* db_schema,
     const char* table_name, struct ArrowSchema* schema, struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetTableSchema(catalog, db_schema, table_name, schema, error);
 }
 
-AdbcStatusCode PostgresConnectionGetTableTypes(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionGetTableTypes(struct AdbcConnection* connection,
                                                struct ArrowArrayStream* stream,
                                                struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->GetTableTypes(connection, stream, error);
 }
 
-AdbcStatusCode PostgresConnectionInit(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionInit(struct AdbcConnection* connection,
                                       struct AdbcDatabase* database,
                                       struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->Init(database, error);
 }
 
-AdbcStatusCode PostgresConnectionNew(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionNew(struct AdbcConnection* connection,
                                      struct AdbcError* error) {
-  auto impl = std::make_shared<PostgresConnection>();
-  connection->private_data = new std::shared_ptr<PostgresConnection>(impl);
+  auto impl = std::make_shared<NetezzaConnection>();
+  connection->private_data = new std::shared_ptr<NetezzaConnection>(impl);
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnectionReadPartition(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionReadPartition(struct AdbcConnection* connection,
                                                const uint8_t* serialized_partition,
                                                size_t serialized_length,
                                                struct ArrowArrayStream* out,
@@ -369,58 +369,58 @@ AdbcStatusCode PostgresConnectionReadPartition(struct AdbcConnection* connection
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresConnectionRelease(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionRelease(struct AdbcConnection* connection,
                                          struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   AdbcStatusCode status = (*ptr)->Release(error);
   delete ptr;
   connection->private_data = nullptr;
   return status;
 }
 
-AdbcStatusCode PostgresConnectionRollback(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionRollback(struct AdbcConnection* connection,
                                           struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->Rollback(error);
 }
 
-AdbcStatusCode PostgresConnectionSetOption(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionSetOption(struct AdbcConnection* connection,
                                            const char* key, const char* value,
                                            struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->SetOption(key, value, error);
 }
 
-AdbcStatusCode PostgresConnectionSetOptionBytes(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionSetOptionBytes(struct AdbcConnection* connection,
                                                 const char* key, const uint8_t* value,
                                                 size_t length, struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->SetOptionBytes(key, value, length, error);
 }
 
-AdbcStatusCode PostgresConnectionSetOptionDouble(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionSetOptionDouble(struct AdbcConnection* connection,
                                                  const char* key, double value,
                                                  struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->SetOptionDouble(key, value, error);
 }
 
-AdbcStatusCode PostgresConnectionSetOptionInt(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnectionSetOptionInt(struct AdbcConnection* connection,
                                               const char* key, int64_t value,
                                               struct AdbcError* error) {
   if (!connection->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   return (*ptr)->SetOptionInt(key, value, error);
 }
 
@@ -428,19 +428,19 @@ AdbcStatusCode PostgresConnectionSetOptionInt(struct AdbcConnection* connection,
 
 AdbcStatusCode AdbcConnectionCancel(struct AdbcConnection* connection,
                                     struct AdbcError* error) {
-  return PostgresConnectionCancel(connection, error);
+  return NetezzaConnectionCancel(connection, error);
 }
 
 AdbcStatusCode AdbcConnectionCommit(struct AdbcConnection* connection,
                                     struct AdbcError* error) {
-  return PostgresConnectionCommit(connection, error);
+  return NetezzaConnectionCommit(connection, error);
 }
 
 AdbcStatusCode AdbcConnectionGetInfo(struct AdbcConnection* connection,
                                      const uint32_t* info_codes, size_t info_codes_length,
                                      struct ArrowArrayStream* stream,
                                      struct AdbcError* error) {
-  return PostgresConnectionGetInfo(connection, info_codes, info_codes_length, stream,
+  return NetezzaConnectionGetInfo(connection, info_codes, info_codes_length, stream,
                                    error);
 }
 
@@ -450,32 +450,32 @@ AdbcStatusCode AdbcConnectionGetObjects(struct AdbcConnection* connection, int d
                                         const char* column_name,
                                         struct ArrowArrayStream* stream,
                                         struct AdbcError* error) {
-  return PostgresConnectionGetObjects(connection, depth, catalog, db_schema, table_name,
+  return NetezzaConnectionGetObjects(connection, depth, catalog, db_schema, table_name,
                                       table_types, column_name, stream, error);
 }
 
 AdbcStatusCode AdbcConnectionGetOption(struct AdbcConnection* connection, const char* key,
                                        char* value, size_t* length,
                                        struct AdbcError* error) {
-  return PostgresConnectionGetOption(connection, key, value, length, error);
+  return NetezzaConnectionGetOption(connection, key, value, length, error);
 }
 
 AdbcStatusCode AdbcConnectionGetOptionBytes(struct AdbcConnection* connection,
                                             const char* key, uint8_t* value,
                                             size_t* length, struct AdbcError* error) {
-  return PostgresConnectionGetOptionBytes(connection, key, value, length, error);
+  return NetezzaConnectionGetOptionBytes(connection, key, value, length, error);
 }
 
 AdbcStatusCode AdbcConnectionGetOptionInt(struct AdbcConnection* connection,
                                           const char* key, int64_t* value,
                                           struct AdbcError* error) {
-  return PostgresConnectionGetOptionInt(connection, key, value, error);
+  return NetezzaConnectionGetOptionInt(connection, key, value, error);
 }
 
 AdbcStatusCode AdbcConnectionGetOptionDouble(struct AdbcConnection* connection,
                                              const char* key, double* value,
                                              struct AdbcError* error) {
-  return PostgresConnectionGetOptionDouble(connection, key, value, error);
+  return NetezzaConnectionGetOptionDouble(connection, key, value, error);
 }
 
 AdbcStatusCode AdbcConnectionGetStatistics(struct AdbcConnection* connection,
@@ -483,14 +483,14 @@ AdbcStatusCode AdbcConnectionGetStatistics(struct AdbcConnection* connection,
                                            const char* table_name, char approximate,
                                            struct ArrowArrayStream* out,
                                            struct AdbcError* error) {
-  return PostgresConnectionGetStatistics(connection, catalog, db_schema, table_name,
+  return NetezzaConnectionGetStatistics(connection, catalog, db_schema, table_name,
                                          approximate, out, error);
 }
 
 AdbcStatusCode AdbcConnectionGetStatisticNames(struct AdbcConnection* connection,
                                                struct ArrowArrayStream* out,
                                                struct AdbcError* error) {
-  return PostgresConnectionGetStatisticNames(connection, out, error);
+  return NetezzaConnectionGetStatisticNames(connection, out, error);
 }
 
 AdbcStatusCode AdbcConnectionGetTableSchema(struct AdbcConnection* connection,
@@ -498,25 +498,25 @@ AdbcStatusCode AdbcConnectionGetTableSchema(struct AdbcConnection* connection,
                                             const char* table_name,
                                             struct ArrowSchema* schema,
                                             struct AdbcError* error) {
-  return PostgresConnectionGetTableSchema(connection, catalog, db_schema, table_name,
+  return NetezzaConnectionGetTableSchema(connection, catalog, db_schema, table_name,
                                           schema, error);
 }
 
 AdbcStatusCode AdbcConnectionGetTableTypes(struct AdbcConnection* connection,
                                            struct ArrowArrayStream* stream,
                                            struct AdbcError* error) {
-  return PostgresConnectionGetTableTypes(connection, stream, error);
+  return NetezzaConnectionGetTableTypes(connection, stream, error);
 }
 
 AdbcStatusCode AdbcConnectionInit(struct AdbcConnection* connection,
                                   struct AdbcDatabase* database,
                                   struct AdbcError* error) {
-  return PostgresConnectionInit(connection, database, error);
+  return NetezzaConnectionInit(connection, database, error);
 }
 
 AdbcStatusCode AdbcConnectionNew(struct AdbcConnection* connection,
                                  struct AdbcError* error) {
-  return PostgresConnectionNew(connection, error);
+  return NetezzaConnectionNew(connection, error);
 }
 
 AdbcStatusCode AdbcConnectionReadPartition(struct AdbcConnection* connection,
@@ -524,75 +524,75 @@ AdbcStatusCode AdbcConnectionReadPartition(struct AdbcConnection* connection,
                                            size_t serialized_length,
                                            struct ArrowArrayStream* out,
                                            struct AdbcError* error) {
-  return PostgresConnectionReadPartition(connection, serialized_partition,
+  return NetezzaConnectionReadPartition(connection, serialized_partition,
                                          serialized_length, out, error);
 }
 
 AdbcStatusCode AdbcConnectionRelease(struct AdbcConnection* connection,
                                      struct AdbcError* error) {
-  return PostgresConnectionRelease(connection, error);
+  return NetezzaConnectionRelease(connection, error);
 }
 
 AdbcStatusCode AdbcConnectionRollback(struct AdbcConnection* connection,
                                       struct AdbcError* error) {
-  return PostgresConnectionRollback(connection, error);
+  return NetezzaConnectionRollback(connection, error);
 }
 
 AdbcStatusCode AdbcConnectionSetOption(struct AdbcConnection* connection, const char* key,
                                        const char* value, struct AdbcError* error) {
-  return PostgresConnectionSetOption(connection, key, value, error);
+  return NetezzaConnectionSetOption(connection, key, value, error);
 }
 
 AdbcStatusCode AdbcConnectionSetOptionBytes(struct AdbcConnection* connection,
                                             const char* key, const uint8_t* value,
                                             size_t length, struct AdbcError* error) {
-  return PostgresConnectionSetOptionBytes(connection, key, value, length, error);
+  return NetezzaConnectionSetOptionBytes(connection, key, value, length, error);
 }
 
 AdbcStatusCode AdbcConnectionSetOptionInt(struct AdbcConnection* connection,
                                           const char* key, int64_t value,
                                           struct AdbcError* error) {
-  return PostgresConnectionSetOptionInt(connection, key, value, error);
+  return NetezzaConnectionSetOptionInt(connection, key, value, error);
 }
 
 AdbcStatusCode AdbcConnectionSetOptionDouble(struct AdbcConnection* connection,
                                              const char* key, double value,
                                              struct AdbcError* error) {
-  return PostgresConnectionSetOptionDouble(connection, key, value, error);
+  return NetezzaConnectionSetOptionDouble(connection, key, value, error);
 }
 
 // ---------------------------------------------------------------------
 // AdbcStatement
 
 namespace {
-AdbcStatusCode PostgresStatementBind(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementBind(struct AdbcStatement* statement,
                                      struct ArrowArray* values,
                                      struct ArrowSchema* schema,
                                      struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->Bind(values, schema, error);
 }
 
-AdbcStatusCode PostgresStatementBindStream(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementBindStream(struct AdbcStatement* statement,
                                            struct ArrowArrayStream* stream,
                                            struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->Bind(stream, error);
 }
 
-AdbcStatusCode PostgresStatementCancel(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementCancel(struct AdbcStatement* statement,
                                        struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->Cancel(error);
 }
 
-AdbcStatusCode PostgresStatementExecutePartitions(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementExecutePartitions(struct AdbcStatement* statement,
                                                   struct ArrowSchema* schema,
                                                   struct AdbcPartitions* partitions,
                                                   int64_t* rows_affected,
@@ -601,138 +601,138 @@ AdbcStatusCode PostgresStatementExecutePartitions(struct AdbcStatement* statemen
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresStatementExecuteQuery(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementExecuteQuery(struct AdbcStatement* statement,
                                              struct ArrowArrayStream* output,
                                              int64_t* rows_affected,
                                              struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->ExecuteQuery(output, rows_affected, error);
 }
 
-AdbcStatusCode PostgresStatementExecuteSchema(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementExecuteSchema(struct AdbcStatement* statement,
                                               struct ArrowSchema* schema,
                                               struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->ExecuteSchema(schema, error);
 }
 
-AdbcStatusCode PostgresStatementGetOption(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementGetOption(struct AdbcStatement* statement,
                                           const char* key, char* value, size_t* length,
                                           struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->GetOption(key, value, length, error);
 }
 
-AdbcStatusCode PostgresStatementGetOptionBytes(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementGetOptionBytes(struct AdbcStatement* statement,
                                                const char* key, uint8_t* value,
                                                size_t* length, struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->GetOptionBytes(key, value, length, error);
 }
 
-AdbcStatusCode PostgresStatementGetOptionDouble(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementGetOptionDouble(struct AdbcStatement* statement,
                                                 const char* key, double* value,
                                                 struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->GetOptionDouble(key, value, error);
 }
 
-AdbcStatusCode PostgresStatementGetOptionInt(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementGetOptionInt(struct AdbcStatement* statement,
                                              const char* key, int64_t* value,
                                              struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->GetOptionInt(key, value, error);
 }
 
-AdbcStatusCode PostgresStatementGetParameterSchema(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementGetParameterSchema(struct AdbcStatement* statement,
                                                    struct ArrowSchema* schema,
                                                    struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->GetParameterSchema(schema, error);
 }
 
-AdbcStatusCode PostgresStatementNew(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaStatementNew(struct AdbcConnection* connection,
                                     struct AdbcStatement* statement,
                                     struct AdbcError* error) {
-  auto impl = std::make_shared<PostgresStatement>();
-  statement->private_data = new std::shared_ptr<PostgresStatement>(impl);
+  auto impl = std::make_shared<NetezzaStatement>();
+  statement->private_data = new std::shared_ptr<NetezzaStatement>(impl);
   return impl->New(connection, error);
 }
 
-AdbcStatusCode PostgresStatementPrepare(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementPrepare(struct AdbcStatement* statement,
                                         struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->Prepare(error);
 }
 
-AdbcStatusCode PostgresStatementRelease(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementRelease(struct AdbcStatement* statement,
                                         struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   auto status = (*ptr)->Release(error);
   delete ptr;
   statement->private_data = nullptr;
   return status;
 }
 
-AdbcStatusCode PostgresStatementSetOption(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementSetOption(struct AdbcStatement* statement,
                                           const char* key, const char* value,
                                           struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->SetOption(key, value, error);
 }
 
-AdbcStatusCode PostgresStatementSetOptionBytes(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementSetOptionBytes(struct AdbcStatement* statement,
                                                const char* key, const uint8_t* value,
                                                size_t length, struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->SetOptionBytes(key, value, length, error);
 }
 
-AdbcStatusCode PostgresStatementSetOptionDouble(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementSetOptionDouble(struct AdbcStatement* statement,
                                                 const char* key, double value,
                                                 struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->SetOptionDouble(key, value, error);
 }
 
-AdbcStatusCode PostgresStatementSetOptionInt(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementSetOptionInt(struct AdbcStatement* statement,
                                              const char* key, int64_t value,
                                              struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->SetOptionInt(key, value, error);
 }
 
-AdbcStatusCode PostgresStatementSetSqlQuery(struct AdbcStatement* statement,
+AdbcStatusCode NetezzaStatementSetSqlQuery(struct AdbcStatement* statement,
                                             const char* query, struct AdbcError* error) {
   if (!statement->private_data) return ADBC_STATUS_INVALID_STATE;
   auto* ptr =
-      reinterpret_cast<std::shared_ptr<PostgresStatement>*>(statement->private_data);
+      reinterpret_cast<std::shared_ptr<NetezzaStatement>*>(statement->private_data);
   return (*ptr)->SetSqlQuery(query, error);
 }
 }  // namespace
@@ -740,18 +740,18 @@ AdbcStatusCode PostgresStatementSetSqlQuery(struct AdbcStatement* statement,
 AdbcStatusCode AdbcStatementBind(struct AdbcStatement* statement,
                                  struct ArrowArray* values, struct ArrowSchema* schema,
                                  struct AdbcError* error) {
-  return PostgresStatementBind(statement, values, schema, error);
+  return NetezzaStatementBind(statement, values, schema, error);
 }
 
 AdbcStatusCode AdbcStatementBindStream(struct AdbcStatement* statement,
                                        struct ArrowArrayStream* stream,
                                        struct AdbcError* error) {
-  return PostgresStatementBindStream(statement, stream, error);
+  return NetezzaStatementBindStream(statement, stream, error);
 }
 
 AdbcStatusCode AdbcStatementCancel(struct AdbcStatement* statement,
                                    struct AdbcError* error) {
-  return PostgresStatementCancel(statement, error);
+  return NetezzaStatementCancel(statement, error);
 }
 
 AdbcStatusCode AdbcStatementExecutePartitions(struct AdbcStatement* statement,
@@ -759,7 +759,7 @@ AdbcStatusCode AdbcStatementExecutePartitions(struct AdbcStatement* statement,
                                               struct AdbcPartitions* partitions,
                                               int64_t* rows_affected,
                                               struct AdbcError* error) {
-  return PostgresStatementExecutePartitions(statement, schema, partitions, rows_affected,
+  return NetezzaStatementExecutePartitions(statement, schema, partitions, rows_affected,
                                             error);
 }
 
@@ -767,84 +767,84 @@ AdbcStatusCode AdbcStatementExecuteQuery(struct AdbcStatement* statement,
                                          struct ArrowArrayStream* output,
                                          int64_t* rows_affected,
                                          struct AdbcError* error) {
-  return PostgresStatementExecuteQuery(statement, output, rows_affected, error);
+  return NetezzaStatementExecuteQuery(statement, output, rows_affected, error);
 }
 
 AdbcStatusCode AdbcStatementExecuteSchema(struct AdbcStatement* statement,
                                           ArrowSchema* schema, struct AdbcError* error) {
-  return PostgresStatementExecuteSchema(statement, schema, error);
+  return NetezzaStatementExecuteSchema(statement, schema, error);
 }
 
 AdbcStatusCode AdbcStatementGetOption(struct AdbcStatement* statement, const char* key,
                                       char* value, size_t* length,
                                       struct AdbcError* error) {
-  return PostgresStatementGetOption(statement, key, value, length, error);
+  return NetezzaStatementGetOption(statement, key, value, length, error);
 }
 
 AdbcStatusCode AdbcStatementGetOptionBytes(struct AdbcStatement* statement,
                                            const char* key, uint8_t* value,
                                            size_t* length, struct AdbcError* error) {
-  return PostgresStatementGetOptionBytes(statement, key, value, length, error);
+  return NetezzaStatementGetOptionBytes(statement, key, value, length, error);
 }
 
 AdbcStatusCode AdbcStatementGetOptionInt(struct AdbcStatement* statement, const char* key,
                                          int64_t* value, struct AdbcError* error) {
-  return PostgresStatementGetOptionInt(statement, key, value, error);
+  return NetezzaStatementGetOptionInt(statement, key, value, error);
 }
 
 AdbcStatusCode AdbcStatementGetOptionDouble(struct AdbcStatement* statement,
                                             const char* key, double* value,
                                             struct AdbcError* error) {
-  return PostgresStatementGetOptionDouble(statement, key, value, error);
+  return NetezzaStatementGetOptionDouble(statement, key, value, error);
 }
 
 AdbcStatusCode AdbcStatementGetParameterSchema(struct AdbcStatement* statement,
                                                struct ArrowSchema* schema,
                                                struct AdbcError* error) {
-  return PostgresStatementGetParameterSchema(statement, schema, error);
+  return NetezzaStatementGetParameterSchema(statement, schema, error);
 }
 
 AdbcStatusCode AdbcStatementNew(struct AdbcConnection* connection,
                                 struct AdbcStatement* statement,
                                 struct AdbcError* error) {
-  return PostgresStatementNew(connection, statement, error);
+  return NetezzaStatementNew(connection, statement, error);
 }
 
 AdbcStatusCode AdbcStatementPrepare(struct AdbcStatement* statement,
                                     struct AdbcError* error) {
-  return PostgresStatementPrepare(statement, error);
+  return NetezzaStatementPrepare(statement, error);
 }
 
 AdbcStatusCode AdbcStatementRelease(struct AdbcStatement* statement,
                                     struct AdbcError* error) {
-  return PostgresStatementRelease(statement, error);
+  return NetezzaStatementRelease(statement, error);
 }
 
 AdbcStatusCode AdbcStatementSetOption(struct AdbcStatement* statement, const char* key,
                                       const char* value, struct AdbcError* error) {
-  return PostgresStatementSetOption(statement, key, value, error);
+  return NetezzaStatementSetOption(statement, key, value, error);
 }
 
 AdbcStatusCode AdbcStatementSetOptionBytes(struct AdbcStatement* statement,
                                            const char* key, const uint8_t* value,
                                            size_t length, struct AdbcError* error) {
-  return PostgresStatementSetOptionBytes(statement, key, value, length, error);
+  return NetezzaStatementSetOptionBytes(statement, key, value, length, error);
 }
 
 AdbcStatusCode AdbcStatementSetOptionInt(struct AdbcStatement* statement, const char* key,
                                          int64_t value, struct AdbcError* error) {
-  return PostgresStatementSetOptionInt(statement, key, value, error);
+  return NetezzaStatementSetOptionInt(statement, key, value, error);
 }
 
 AdbcStatusCode AdbcStatementSetOptionDouble(struct AdbcStatement* statement,
                                             const char* key, double value,
                                             struct AdbcError* error) {
-  return PostgresStatementSetOptionDouble(statement, key, value, error);
+  return NetezzaStatementSetOptionDouble(statement, key, value, error);
 }
 
 AdbcStatusCode AdbcStatementSetSqlQuery(struct AdbcStatement* statement,
                                         const char* query, struct AdbcError* error) {
-  return PostgresStatementSetSqlQuery(statement, query, error);
+  return NetezzaStatementSetSqlQuery(statement, query, error);
 }
 
 extern "C" {
@@ -862,67 +862,67 @@ AdbcStatusCode NetezzaDriverInit(int version, void* raw_driver,
 
     driver->ErrorGetDetailCount = CommonErrorGetDetailCount;
     driver->ErrorGetDetail = CommonErrorGetDetail;
-    driver->ErrorFromArrayStream = PostgresErrorFromArrayStream;
+    driver->ErrorFromArrayStream = NetezzaErrorFromArrayStream;
 
-    driver->DatabaseGetOption = PostgresDatabaseGetOption;
-    driver->DatabaseGetOptionBytes = PostgresDatabaseGetOptionBytes;
-    driver->DatabaseGetOptionDouble = PostgresDatabaseGetOptionDouble;
-    driver->DatabaseGetOptionInt = PostgresDatabaseGetOptionInt;
-    driver->DatabaseSetOptionBytes = PostgresDatabaseSetOptionBytes;
-    driver->DatabaseSetOptionDouble = PostgresDatabaseSetOptionDouble;
-    driver->DatabaseSetOptionInt = PostgresDatabaseSetOptionInt;
+    driver->DatabaseGetOption = NetezzaDatabaseGetOption;
+    driver->DatabaseGetOptionBytes = NetezzaDatabaseGetOptionBytes;
+    driver->DatabaseGetOptionDouble = NetezzaDatabaseGetOptionDouble;
+    driver->DatabaseGetOptionInt = NetezzaDatabaseGetOptionInt;
+    driver->DatabaseSetOptionBytes = NetezzaDatabaseSetOptionBytes;
+    driver->DatabaseSetOptionDouble = NetezzaDatabaseSetOptionDouble;
+    driver->DatabaseSetOptionInt = NetezzaDatabaseSetOptionInt;
 
-    driver->ConnectionCancel = PostgresConnectionCancel;
-    driver->ConnectionGetOption = PostgresConnectionGetOption;
-    driver->ConnectionGetOptionBytes = PostgresConnectionGetOptionBytes;
-    driver->ConnectionGetOptionDouble = PostgresConnectionGetOptionDouble;
-    driver->ConnectionGetOptionInt = PostgresConnectionGetOptionInt;
-    driver->ConnectionGetStatistics = PostgresConnectionGetStatistics;
-    driver->ConnectionGetStatisticNames = PostgresConnectionGetStatisticNames;
-    driver->ConnectionSetOptionBytes = PostgresConnectionSetOptionBytes;
-    driver->ConnectionSetOptionDouble = PostgresConnectionSetOptionDouble;
-    driver->ConnectionSetOptionInt = PostgresConnectionSetOptionInt;
+    driver->ConnectionCancel = NetezzaConnectionCancel;
+    driver->ConnectionGetOption = NetezzaConnectionGetOption;
+    driver->ConnectionGetOptionBytes = NetezzaConnectionGetOptionBytes;
+    driver->ConnectionGetOptionDouble = NetezzaConnectionGetOptionDouble;
+    driver->ConnectionGetOptionInt = NetezzaConnectionGetOptionInt;
+    driver->ConnectionGetStatistics = NetezzaConnectionGetStatistics;
+    driver->ConnectionGetStatisticNames = NetezzaConnectionGetStatisticNames;
+    driver->ConnectionSetOptionBytes = NetezzaConnectionSetOptionBytes;
+    driver->ConnectionSetOptionDouble = NetezzaConnectionSetOptionDouble;
+    driver->ConnectionSetOptionInt = NetezzaConnectionSetOptionInt;
 
-    driver->StatementCancel = PostgresStatementCancel;
-    driver->StatementExecuteSchema = PostgresStatementExecuteSchema;
-    driver->StatementGetOption = PostgresStatementGetOption;
-    driver->StatementGetOptionBytes = PostgresStatementGetOptionBytes;
-    driver->StatementGetOptionDouble = PostgresStatementGetOptionDouble;
-    driver->StatementGetOptionInt = PostgresStatementGetOptionInt;
-    driver->StatementSetOptionBytes = PostgresStatementSetOptionBytes;
-    driver->StatementSetOptionDouble = PostgresStatementSetOptionDouble;
-    driver->StatementSetOptionInt = PostgresStatementSetOptionInt;
+    driver->StatementCancel = NetezzaStatementCancel;
+    driver->StatementExecuteSchema = NetezzaStatementExecuteSchema;
+    driver->StatementGetOption = NetezzaStatementGetOption;
+    driver->StatementGetOptionBytes = NetezzaStatementGetOptionBytes;
+    driver->StatementGetOptionDouble = NetezzaStatementGetOptionDouble;
+    driver->StatementGetOptionInt = NetezzaStatementGetOptionInt;
+    driver->StatementSetOptionBytes = NetezzaStatementSetOptionBytes;
+    driver->StatementSetOptionDouble = NetezzaStatementSetOptionDouble;
+    driver->StatementSetOptionInt = NetezzaStatementSetOptionInt;
   } else {
     std::memset(driver, 0, ADBC_DRIVER_1_0_0_SIZE);
   }
 
-  driver->DatabaseInit = PostgresDatabaseInit;
-  driver->DatabaseNew = PostgresDatabaseNew;
-  driver->DatabaseRelease = PostgresDatabaseRelease;
-  driver->DatabaseSetOption = PostgresDatabaseSetOption;
+  driver->DatabaseInit = NetezzaDatabaseInit;
+  driver->DatabaseNew = NetezzaDatabaseNew;
+  driver->DatabaseRelease = NetezzaDatabaseRelease;
+  driver->DatabaseSetOption = NetezzaDatabaseSetOption;
 
-  driver->ConnectionCommit = PostgresConnectionCommit;
-  driver->ConnectionGetInfo = PostgresConnectionGetInfo;
-  driver->ConnectionGetObjects = PostgresConnectionGetObjects;
-  driver->ConnectionGetTableSchema = PostgresConnectionGetTableSchema;
-  driver->ConnectionGetTableTypes = PostgresConnectionGetTableTypes;
-  driver->ConnectionInit = PostgresConnectionInit;
-  driver->ConnectionNew = PostgresConnectionNew;
-  driver->ConnectionReadPartition = PostgresConnectionReadPartition;
-  driver->ConnectionRelease = PostgresConnectionRelease;
-  driver->ConnectionRollback = PostgresConnectionRollback;
-  driver->ConnectionSetOption = PostgresConnectionSetOption;
+  driver->ConnectionCommit = NetezzaConnectionCommit;
+  driver->ConnectionGetInfo = NetezzaConnectionGetInfo;
+  driver->ConnectionGetObjects = NetezzaConnectionGetObjects;
+  driver->ConnectionGetTableSchema = NetezzaConnectionGetTableSchema;
+  driver->ConnectionGetTableTypes = NetezzaConnectionGetTableTypes;
+  driver->ConnectionInit = NetezzaConnectionInit;
+  driver->ConnectionNew = NetezzaConnectionNew;
+  driver->ConnectionReadPartition = NetezzaConnectionReadPartition;
+  driver->ConnectionRelease = NetezzaConnectionRelease;
+  driver->ConnectionRollback = NetezzaConnectionRollback;
+  driver->ConnectionSetOption = NetezzaConnectionSetOption;
 
-  driver->StatementBind = PostgresStatementBind;
-  driver->StatementBindStream = PostgresStatementBindStream;
-  driver->StatementExecutePartitions = PostgresStatementExecutePartitions;
-  driver->StatementExecuteQuery = PostgresStatementExecuteQuery;
-  driver->StatementGetParameterSchema = PostgresStatementGetParameterSchema;
-  driver->StatementNew = PostgresStatementNew;
-  driver->StatementPrepare = PostgresStatementPrepare;
-  driver->StatementRelease = PostgresStatementRelease;
-  driver->StatementSetOption = PostgresStatementSetOption;
-  driver->StatementSetSqlQuery = PostgresStatementSetSqlQuery;
+  driver->StatementBind = NetezzaStatementBind;
+  driver->StatementBindStream = NetezzaStatementBindStream;
+  driver->StatementExecutePartitions = NetezzaStatementExecutePartitions;
+  driver->StatementExecuteQuery = NetezzaStatementExecuteQuery;
+  driver->StatementGetParameterSchema = NetezzaStatementGetParameterSchema;
+  driver->StatementNew = NetezzaStatementNew;
+  driver->StatementPrepare = NetezzaStatementPrepare;
+  driver->StatementRelease = NetezzaStatementRelease;
+  driver->StatementSetOption = NetezzaStatementSetOption;
+  driver->StatementSetSqlQuery = NetezzaStatementSetSqlQuery;
 
   return ADBC_STATUS_OK;
 }

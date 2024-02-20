@@ -32,34 +32,34 @@
 
 namespace adbcpq {
 
-PostgresDatabase::PostgresDatabase() : open_connections_(0) {
+NetezzaDatabase::NetezzaDatabase() : open_connections_(0) {
   type_resolver_ = std::make_shared<NetezzaTypeResolver>();
 }
-PostgresDatabase::~PostgresDatabase() = default;
+NetezzaDatabase::~NetezzaDatabase() = default;
 
-AdbcStatusCode PostgresDatabase::GetOption(const char* option, char* value,
+AdbcStatusCode NetezzaDatabase::GetOption(const char* option, char* value,
                                            size_t* length, struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
-AdbcStatusCode PostgresDatabase::GetOptionBytes(const char* option, uint8_t* value,
+AdbcStatusCode NetezzaDatabase::GetOptionBytes(const char* option, uint8_t* value,
                                                 size_t* length, struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
-AdbcStatusCode PostgresDatabase::GetOptionInt(const char* option, int64_t* value,
+AdbcStatusCode NetezzaDatabase::GetOptionInt(const char* option, int64_t* value,
                                               struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
-AdbcStatusCode PostgresDatabase::GetOptionDouble(const char* option, double* value,
+AdbcStatusCode NetezzaDatabase::GetOptionDouble(const char* option, double* value,
                                                  struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
 
-AdbcStatusCode PostgresDatabase::Init(struct AdbcError* error) {
+AdbcStatusCode NetezzaDatabase::Init(struct AdbcError* error) {
   // Connect to validate the parameters.
   return RebuildTypeResolver(error);
 }
 
-AdbcStatusCode PostgresDatabase::Release(struct AdbcError* error) {
+AdbcStatusCode NetezzaDatabase::Release(struct AdbcError* error) {
   if (open_connections_ != 0) {
     SetError(error, "%s%" PRId32 "%s", "[libpq] Database released with ",
              open_connections_, " open connections");
@@ -68,7 +68,7 @@ AdbcStatusCode PostgresDatabase::Release(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresDatabase::SetOption(const char* key, const char* value,
+AdbcStatusCode NetezzaDatabase::SetOption(const char* key, const char* value,
                                            struct AdbcError* error) {
   if (strcmp(key, "uri") == 0) {
     uri_ = value;
@@ -79,7 +79,7 @@ AdbcStatusCode PostgresDatabase::SetOption(const char* key, const char* value,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresDatabase::SetConnOptionInternal(PGconn** conn, const char* key, const char* value,
+AdbcStatusCode NetezzaDatabase::SetConnOptionInternal(PGconn** conn, const char* key, const char* value,
                                            struct AdbcError* error) {
 /*
 This method is used for internal purpose only and should not be called from the frontend.
@@ -104,25 +104,25 @@ Purpose: To set the options at the driver level, which we don't want the clients
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresDatabase::SetOptionBytes(const char* key, const uint8_t* value,
+AdbcStatusCode NetezzaDatabase::SetOptionBytes(const char* key, const uint8_t* value,
                                                 size_t length, struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresDatabase::SetOptionDouble(const char* key, double value,
+AdbcStatusCode NetezzaDatabase::SetOptionDouble(const char* key, double value,
                                                  struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresDatabase::SetOptionInt(const char* key, int64_t value,
+AdbcStatusCode NetezzaDatabase::SetOptionInt(const char* key, int64_t value,
                                               struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresDatabase::Connect(PGconn** conn, struct AdbcError* error) {
+AdbcStatusCode NetezzaDatabase::Connect(PGconn** conn, struct AdbcError* error) {
   if (uri_.empty()) {
     SetError(error, "%s",
              "[libpq] Must set database option 'uri' before creating a connection");
@@ -173,7 +173,7 @@ AdbcStatusCode PostgresDatabase::Connect(PGconn** conn, struct AdbcError* error)
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresDatabase::Disconnect(PGconn** conn, struct AdbcError* error) {
+AdbcStatusCode NetezzaDatabase::Disconnect(PGconn** conn, struct AdbcError* error) {
   PQfinish(*conn);
   *conn = nullptr;
   if (--open_connections_ < 0) {
@@ -190,7 +190,7 @@ static inline int32_t InsertPgAttributeResult(
 static inline int32_t InsertPgTypeResult(
     PGresult* result, const std::shared_ptr<NetezzaTypeResolver>& resolver);
 
-AdbcStatusCode PostgresDatabase::RebuildTypeResolver(struct AdbcError* error) {
+AdbcStatusCode NetezzaDatabase::RebuildTypeResolver(struct AdbcError* error) {
   PGconn* conn = nullptr;
   AdbcStatusCode final_status = Connect(&conn, error);
   if (final_status != ADBC_STATUS_OK) {
@@ -266,11 +266,6 @@ ORDER BY
     }
   }
 
-  /*
-  * The below code is commented since Netezza needs connection for next set of queries.
-  * Otherwise, you'll encounter 'ERROR: Query was cancelled'.
-  */
-  // Disconnect since PostgreSQL connections can be heavy.
   {
     AdbcStatusCode status = Disconnect(&conn, error);
     if (status != ADBC_STATUS_OK) final_status = status;

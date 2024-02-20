@@ -17,7 +17,7 @@
   under the License.
 -->
 
-# ADBC PostgreSQL Driver
+# ADBC Netezza Driver
 
 This implements an ADBC driver that wraps [libpq][libpq], the client
 library for PostgreSQL.  This is still a work in progress.

@@ -23,13 +23,13 @@
 #include <adbc.h>
 #include <libpq-fe.h>
 
-#include "postgres_type.h"
+#include "netezza_type.h"
 
 namespace adbcpq {
-class PostgresDatabase;
-class PostgresConnection {
+class NetezzaDatabase;
+class NetezzaConnection {
  public:
-  PostgresConnection()
+  NetezzaConnection()
       : database_(nullptr), conn_(nullptr), cancel_(0), autocommit_(true) {}
 
   AdbcStatusCode Cancel(struct AdbcError* error);
@@ -75,12 +75,12 @@ class PostgresConnection {
   bool autocommit() const { return autocommit_; }
 
  private:
-  AdbcStatusCode PostgresConnectionGetInfoImpl(const uint32_t* info_codes,
+  AdbcStatusCode NetezzaConnectionGetInfoImpl(const uint32_t* info_codes,
                                                size_t info_codes_length,
                                                struct ArrowSchema* schema,
                                                struct ArrowArray* array,
                                                struct AdbcError* error);
-  std::shared_ptr<PostgresDatabase> database_;
+  std::shared_ptr<NetezzaDatabase> database_;
   std::shared_ptr<NetezzaTypeResolver> type_resolver_;
   PGconn* conn_;
   int cancel_;

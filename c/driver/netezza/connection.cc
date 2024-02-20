@@ -49,9 +49,9 @@ static const std::unordered_map<std::string, std::string> kPgTableTypes = {
     {"table", "r"},       {"view", "v"},          {"materialized_view", "m"},
     {"toast_table", "t"}, {"foreign_table", "f"}, {"partitioned_table", "p"}};
 
-class PqGetObjectsHelper {
+class NzGetObjectsHelper {
  public:
-  PqGetObjectsHelper(PGconn* conn, int depth, const char* catalog, const char* db_schema,
+  NzGetObjectsHelper(PGconn* conn, int depth, const char* catalog, const char* db_schema,
                      const char* table_name, const char** table_types,
                      const char* column_name, struct ArrowSchema* schema,
                      struct ArrowArray* array, struct AdbcError* error)
@@ -609,10 +609,7 @@ void SilentNoticeProcessor(void* /*arg*/, const char* /*message*/) {}
 
 }  // namespace
 
-AdbcStatusCode PostgresConnection::Cancel(struct AdbcError* error) {
-  // > errbuf must be a char array of size errbufsize (the recommended size is
-  // > 256 bytes).
-  // https://www.postgresql.org/docs/current/libpq-cancel.html
+AdbcStatusCode NetezzaConnection::Cancel(struct AdbcError* error) {
   char errbuf[256];
   // > The return value is 1 if the cancel request was successfully dispatched
   // > and 0 if not.
@@ -623,7 +620,7 @@ AdbcStatusCode PostgresConnection::Cancel(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::Commit(struct AdbcError* error) {
+AdbcStatusCode NetezzaConnection::Commit(struct AdbcError* error) {
   if (autocommit_) {
     SetError(error, "%s", "[libpq] Cannot commit when autocommit is enabled");
     return ADBC_STATUS_INVALID_STATE;
@@ -640,7 +637,7 @@ AdbcStatusCode PostgresConnection::Commit(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::PostgresConnectionGetInfoImpl(
+AdbcStatusCode NetezzaConnection::NetezzaConnectionGetInfoImpl(
     const uint32_t* info_codes, size_t info_codes_length, struct ArrowSchema* schema,
     struct ArrowArray* array, struct AdbcError* error) {
   RAISE_ADBC(AdbcInitConnectionGetInfoSchema(info_codes, info_codes_length, schema, array,
@@ -699,7 +696,7 @@ AdbcStatusCode PostgresConnection::PostgresConnectionGetInfoImpl(
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::GetInfo(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnection::GetInfo(struct AdbcConnection* connection,
                                            const uint32_t* info_codes,
                                            size_t info_codes_length,
                                            struct ArrowArrayStream* out,
@@ -714,7 +711,7 @@ AdbcStatusCode PostgresConnection::GetInfo(struct AdbcConnection* connection,
   struct ArrowArray array;
   std::memset(&array, 0, sizeof(array));
 
-  AdbcStatusCode status = PostgresConnectionGetInfoImpl(info_codes, info_codes_length,
+  AdbcStatusCode status = NetezzaConnectionGetInfoImpl(info_codes, info_codes_length,
                                                         &schema, &array, error);
   if (status != ADBC_STATUS_OK) {
     if (schema.release) schema.release(&schema);
@@ -725,7 +722,7 @@ AdbcStatusCode PostgresConnection::GetInfo(struct AdbcConnection* connection,
   return BatchToArrayStream(&array, &schema, out, error);
 }
 
-AdbcStatusCode PostgresConnection::GetObjects(
+AdbcStatusCode NetezzaConnection::GetObjects(
     struct AdbcConnection* connection, int depth, const char* catalog,
     const char* db_schema, const char* table_name, const char** table_types,
     const char* column_name, struct ArrowArrayStream* out, struct AdbcError* error) {
@@ -734,8 +731,8 @@ AdbcStatusCode PostgresConnection::GetObjects(
   struct ArrowArray array;
   std::memset(&array, 0, sizeof(array));
 
-  PqGetObjectsHelper helper =
-      PqGetObjectsHelper(conn_, depth, catalog, db_schema, table_name, table_types,
+  NzGetObjectsHelper helper =
+      NzGetObjectsHelper(conn_, depth, catalog, db_schema, table_name, table_types,
                          column_name, &schema, &array, error);
   AdbcStatusCode status = helper.GetObjects();
 
@@ -748,7 +745,7 @@ AdbcStatusCode PostgresConnection::GetObjects(
   return BatchToArrayStream(&array, &schema, out, error);
 }
 
-AdbcStatusCode PostgresConnection::GetOption(const char* option, char* value,
+AdbcStatusCode NetezzaConnection::GetOption(const char* option, char* value,
                                              size_t* length, struct AdbcError* error) {
   std::string output;
   if (std::strcmp(option, ADBC_CONNECTION_OPTION_CURRENT_CATALOG) == 0) {
@@ -775,21 +772,21 @@ AdbcStatusCode PostgresConnection::GetOption(const char* option, char* value,
   *length = output.size() + 1;
   return ADBC_STATUS_OK;
 }
-AdbcStatusCode PostgresConnection::GetOptionBytes(const char* option, uint8_t* value,
+AdbcStatusCode NetezzaConnection::GetOptionBytes(const char* option, uint8_t* value,
                                                   size_t* length,
                                                   struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
-AdbcStatusCode PostgresConnection::GetOptionInt(const char* option, int64_t* value,
+AdbcStatusCode NetezzaConnection::GetOptionInt(const char* option, int64_t* value,
                                                 struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
-AdbcStatusCode PostgresConnection::GetOptionDouble(const char* option, double* value,
+AdbcStatusCode NetezzaConnection::GetOptionDouble(const char* option, double* value,
                                                    struct AdbcError* error) {
   return ADBC_STATUS_NOT_FOUND;
 }
 
-AdbcStatusCode PostgresConnectionGetStatisticsImpl(PGconn* conn, const char* db_schema,
+AdbcStatusCode NetezzaConnectionGetStatisticsImpl(PGconn* conn, const char* db_schema,
                                                    const char* table_name,
                                                    struct ArrowSchema* schema,
                                                    struct ArrowArray* array,
@@ -1030,7 +1027,6 @@ AdbcStatusCode PostgresConnectionGetStatisticsImpl(PGconn* conn, const char* db_
       // > If greater than zero, the estimated number of distinct values in
       // > the column. If less than zero, the negative of the number of
       // > distinct values divided by the number of rows.
-      // https://www.postgresql.org/docs/current/view-pg-stats.html
       CHECK_NA(
           INTERNAL,
           ArrowArrayAppendDouble(value_float64_col,
@@ -1057,7 +1053,7 @@ AdbcStatusCode PostgresConnectionGetStatisticsImpl(PGconn* conn, const char* db_
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::GetStatistics(const char* catalog,
+AdbcStatusCode NetezzaConnection::GetStatistics(const char* catalog,
                                                  const char* db_schema,
                                                  const char* table_name, bool approximate,
                                                  struct ArrowArrayStream* out,
@@ -1079,7 +1075,7 @@ AdbcStatusCode PostgresConnection::GetStatistics(const char* catalog,
   struct ArrowArray array;
   std::memset(&array, 0, sizeof(array));
 
-  AdbcStatusCode status = PostgresConnectionGetStatisticsImpl(
+  AdbcStatusCode status = NetezzaConnectionGetStatisticsImpl(
       conn_, db_schema, table_name, &schema, &array, error);
   if (status != ADBC_STATUS_OK) {
     if (schema.release) schema.release(&schema);
@@ -1090,7 +1086,7 @@ AdbcStatusCode PostgresConnection::GetStatistics(const char* catalog,
   return BatchToArrayStream(&array, &schema, out, error);
 }
 
-AdbcStatusCode PostgresConnectionGetStatisticNamesImpl(struct ArrowSchema* schema,
+AdbcStatusCode NetezzaConnectionGetStatisticNamesImpl(struct ArrowSchema* schema,
                                                        struct ArrowArray* array,
                                                        struct AdbcError* error) {
   auto uschema = nanoarrow::UniqueSchema();
@@ -1122,7 +1118,7 @@ AdbcStatusCode PostgresConnectionGetStatisticNamesImpl(struct ArrowSchema* schem
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::GetStatisticNames(struct ArrowArrayStream* out,
+AdbcStatusCode NetezzaConnection::GetStatisticNames(struct ArrowArrayStream* out,
                                                      struct AdbcError* error) {
   // We don't support any extended statistics, just return an empty stream
   struct ArrowSchema schema;
@@ -1130,7 +1126,7 @@ AdbcStatusCode PostgresConnection::GetStatisticNames(struct ArrowArrayStream* ou
   struct ArrowArray array;
   std::memset(&array, 0, sizeof(array));
 
-  AdbcStatusCode status = PostgresConnectionGetStatisticNamesImpl(&schema, &array, error);
+  AdbcStatusCode status = NetezzaConnectionGetStatisticNamesImpl(&schema, &array, error);
   if (status != ADBC_STATUS_OK) {
     if (schema.release) schema.release(&schema);
     if (array.release) array.release(&array);
@@ -1141,7 +1137,7 @@ AdbcStatusCode PostgresConnection::GetStatisticNames(struct ArrowArrayStream* ou
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::GetTableSchema(const char* catalog,
+AdbcStatusCode NetezzaConnection::GetTableSchema(const char* catalog,
                                                   const char* db_schema,
                                                   const char* table_name,
                                                   struct ArrowSchema* schema,
@@ -1219,10 +1215,9 @@ AdbcStatusCode PostgresConnection::GetTableSchema(const char* catalog,
   return final_status;
 }
 
-AdbcStatusCode PostgresConnectionGetTableTypesImpl(struct ArrowSchema* schema,
+AdbcStatusCode NetezzaConnectionGetTableTypesImpl(struct ArrowSchema* schema,
                                                    struct ArrowArray* array,
                                                    struct AdbcError* error) {
-  // See 'relkind' in https://www.postgresql.org/docs/current/catalog-pg-class.html
   auto uschema = nanoarrow::UniqueSchema();
   ArrowSchemaInit(uschema.get());
 
@@ -1252,7 +1247,7 @@ AdbcStatusCode PostgresConnectionGetTableTypesImpl(struct ArrowSchema* schema,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::GetTableTypes(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaConnection::GetTableTypes(struct AdbcConnection* connection,
                                                  struct ArrowArrayStream* out,
                                                  struct AdbcError* error) {
   struct ArrowSchema schema;
@@ -1260,7 +1255,7 @@ AdbcStatusCode PostgresConnection::GetTableTypes(struct AdbcConnection* connecti
   struct ArrowArray array;
   std::memset(&array, 0, sizeof(array));
 
-  AdbcStatusCode status = PostgresConnectionGetTableTypesImpl(&schema, &array, error);
+  AdbcStatusCode status = NetezzaConnectionGetTableTypesImpl(&schema, &array, error);
   if (status != ADBC_STATUS_OK) {
     if (schema.release) schema.release(&schema);
     if (array.release) array.release(&array);
@@ -1269,14 +1264,14 @@ AdbcStatusCode PostgresConnection::GetTableTypes(struct AdbcConnection* connecti
   return BatchToArrayStream(&array, &schema, out, error);
 }
 
-AdbcStatusCode PostgresConnection::Init(struct AdbcDatabase* database,
+AdbcStatusCode NetezzaConnection::Init(struct AdbcDatabase* database,
                                         struct AdbcError* error) {
   if (!database || !database->private_data) {
     SetError(error, "[libpq] Must provide an initialized AdbcDatabase");
     return ADBC_STATUS_INVALID_ARGUMENT;
   }
   database_ =
-      *reinterpret_cast<std::shared_ptr<PostgresDatabase>*>(database->private_data);
+      *reinterpret_cast<std::shared_ptr<NetezzaDatabase>*>(database->private_data);
   type_resolver_ = database_->type_resolver();
 
   RAISE_ADBC(database_->Connect(&conn_, error));
@@ -1288,7 +1283,7 @@ AdbcStatusCode PostgresConnection::Init(struct AdbcDatabase* database,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::Release(struct AdbcError* error) {
+AdbcStatusCode NetezzaConnection::Release(struct AdbcError* error) {
   if (cancel_) {
     cancel_ = 0;
   }
@@ -1298,7 +1293,7 @@ AdbcStatusCode PostgresConnection::Release(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::Rollback(struct AdbcError* error) {
+AdbcStatusCode NetezzaConnection::Rollback(struct AdbcError* error) {
   if (autocommit_) {
     SetError(error, "%s", "[libpq] Cannot rollback when autocommit is enabled");
     return ADBC_STATUS_INVALID_STATE;
@@ -1314,7 +1309,7 @@ AdbcStatusCode PostgresConnection::Rollback(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresConnection::SetOption(const char* key, const char* value,
+AdbcStatusCode NetezzaConnection::SetOption(const char* key, const char* value,
                                              struct AdbcError* error) {
   if (std::strcmp(key, ADBC_CONNECTION_OPTION_AUTOCOMMIT) == 0) {
     bool autocommit = true;
@@ -1353,20 +1348,20 @@ AdbcStatusCode PostgresConnection::SetOption(const char* key, const char* value,
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresConnection::SetOptionBytes(const char* key, const uint8_t* value,
+AdbcStatusCode NetezzaConnection::SetOptionBytes(const char* key, const uint8_t* value,
                                                   size_t length,
                                                   struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresConnection::SetOptionDouble(const char* key, double value,
+AdbcStatusCode NetezzaConnection::SetOptionDouble(const char* key, double value,
                                                    struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresConnection::SetOptionInt(const char* key, int64_t value,
+AdbcStatusCode NetezzaConnection::SetOptionInt(const char* key, int64_t value,
                                                 struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;

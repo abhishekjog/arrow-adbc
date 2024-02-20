@@ -25,13 +25,13 @@
 #include <libpq-fe.h>
 
 #include "constants.h"
-#include "postgres_type.h"
+#include "netezza_type.h"
 
 namespace adbcpq {
-class PostgresDatabase {
+class NetezzaDatabase {
  public:
-  PostgresDatabase();
-  ~PostgresDatabase();
+  NetezzaDatabase();
+  ~NetezzaDatabase();
 
   // Public ADBC API
 
@@ -74,5 +74,5 @@ extern "C" {
 /// For applications that want to use the driver struct directly, this gives
 /// them access to the Init routine.
 ADBC_EXPORT
-AdbcStatusCode PostgresqlDriverInit(int, void*, struct AdbcError*);
+AdbcStatusCode NetezzaDriverInit(int, void*, struct AdbcError*);
 }

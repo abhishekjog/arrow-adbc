@@ -37,10 +37,10 @@
                                                           __COUNTER__), EXPR)
 
 
-static void BM_PostgresqlExecute(benchmark::State& state) {
-  const char* uri = std::getenv("ADBC_POSTGRESQL_TEST_URI");
+static void BM_NetezzaExecute(benchmark::State& state) {
+  const char* uri = std::getenv("ADBC_NETEZZA_TEST_URI");
   if (!uri || !strcmp(uri, "")) {
-    state.SkipWithError("ADBC_POSTGRESQL_TEST_URI not set!");
+    state.SkipWithError("ADBC_NETEZZA_TEST_URI not set!");
     return;
   }
   adbc_validation::Handle<struct AdbcDatabase> database;
@@ -64,7 +64,7 @@ static void BM_PostgresqlExecute(benchmark::State& state) {
                                                 &statement.value,
                                                 &error));
 
-  const char* drop_query = "DROP TABLE IF EXISTS adbc_postgresql_ingest_benchmark";
+  const char* drop_query = "DROP TABLE IF EXISTS adbc_netezza_ingest_benchmark";
   ADBC_BENCHMARK_RETURN_NOT_OK(AdbcStatementSetSqlQuery(&statement.value,
                                                         drop_query,
                                                         &error));
@@ -133,7 +133,7 @@ static void BM_PostgresqlExecute(benchmark::State& state) {
   }
 
   const char* create_query =
-    "CREATE TABLE adbc_postgresql_ingest_benchmark (bools BOOLEAN, int16s SMALLINT, "
+    "CREATE TABLE adbc_netezza_ingest_benchmark (bools BOOLEAN, int16s SMALLINT, "
     "int32s INTEGER, int64s BIGINT, floats REAL, doubles DOUBLE PRECISION)";
 
   ADBC_BENCHMARK_RETURN_NOT_OK(AdbcStatementSetSqlQuery(&statement.value,
@@ -152,7 +152,7 @@ static void BM_PostgresqlExecute(benchmark::State& state) {
 
   ADBC_BENCHMARK_RETURN_NOT_OK(AdbcStatementSetOption(&insert_stmt.value,
                                                       ADBC_INGEST_OPTION_TARGET_TABLE,
-                                                      "adbc_postgresql_ingest_benchmark",
+                                                      "adbc_netezza_ingest_benchmark",
                                                       &error));
 
   ADBC_BENCHMARK_RETURN_NOT_OK(AdbcStatementSetOption(&insert_stmt.value,
@@ -175,5 +175,5 @@ static void BM_PostgresqlExecute(benchmark::State& state) {
                                                          &error));
 }
 
-BENCHMARK(BM_PostgresqlExecute)->Iterations(1);
+BENCHMARK(BM_NetezzaExecute)->Iterations(1);
 BENCHMARK_MAIN();

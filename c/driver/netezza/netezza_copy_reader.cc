@@ -15,20 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "postgres_copy_reader.h"
+#include "netezza_copy_reader.h"
 
 namespace adbcpq {
 
-  void PostgresCopyFieldReader::Init(const NetezzaType& pg_type) { pg_type_ = pg_type; }
+  void NetezzaCopyFieldReader::Init(const NetezzaType& pg_type) { pg_type_ = pg_type; }
 
-  const NetezzaType& PostgresCopyFieldReader::InputType() const { return pg_type_; }
+  const NetezzaType& NetezzaCopyFieldReader::InputType() const { return pg_type_; }
 
-  ArrowErrorCode PostgresCopyFieldReader::InitSchema(ArrowSchema* schema) {
+  ArrowErrorCode NetezzaCopyFieldReader::InitSchema(ArrowSchema* schema) {
     NANOARROW_RETURN_NOT_OK(ArrowSchemaViewInit(&schema_view_, schema, nullptr));
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyFieldReader::InitArray(ArrowArray* array) {
+  ArrowErrorCode NetezzaCopyFieldReader::InitArray(ArrowArray* array) {
     // Cache some buffer pointers
     validity_ = ArrowArrayValidityBitmap(array);
     for (int32_t i = 0; i < 3; i++) {
@@ -49,16 +49,16 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes,
+  ArrowErrorCode NetezzaCopyFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes,
                               ArrowArray* array, ArrowError* error) {
     return ENOTSUP;
   }
 
-  ArrowErrorCode PostgresCopyFieldReader::FinishArray(ArrowArray* array, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyFieldReader::FinishArray(ArrowArray* array, ArrowError* error) {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyFieldReader::AppendValid(ArrowArray* array) {
+  ArrowErrorCode NetezzaCopyFieldReader::AppendValid(ArrowArray* array) {
     if (validity_->buffer.data != nullptr) {
       NANOARROW_RETURN_NOT_OK(ArrowBitmapAppend(validity_, true, 1));
     }
@@ -67,9 +67,8 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-// Reader for a Postgres boolean (one byte -> bitmap)
 
-  ArrowErrorCode PostgresCopyBooleanFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyBooleanFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error) {
     if (field_size_bytes <= 0) {
       return ArrowArrayAppendNull(array, 1);
@@ -100,7 +99,7 @@ namespace adbcpq {
 // Reader for Pg->Arrow conversions whose representations are identical minus
 // the bswap from network endian. This includes all integral and float types.
   template <typename T, T kOffset>
-  ArrowErrorCode PostgresCopyNetworkEndianFieldReader<T, kOffset>::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyNetworkEndianFieldReader<T, kOffset>::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error) {
     if (field_size_bytes <= 0) {
       return ArrowArrayAppendNull(array, 1);
@@ -119,7 +118,7 @@ namespace adbcpq {
   }
 
 // Reader for Intervals
-  ArrowErrorCode PostgresCopyIntervalFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyIntervalFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error) {
     if (field_size_bytes <= 0) {
       return ArrowArrayAppendNull(array, 1);
@@ -132,7 +131,7 @@ namespace adbcpq {
       return EINVAL;
     }
 
-    // postgres stores time as usec, arrow stores as ns
+    // netezza stores time as usec, arrow stores as ns
     const int64_t time_usec = ReadUnsafe<int64_t>(data);
     int64_t time;
 
@@ -156,18 +155,18 @@ namespace adbcpq {
   }
 
 
-// // Converts COPY resulting from the Postgres NUMERIC type into a string.
-// Rewritten based on the Postgres implementation of NUMERIC cast to string in
+// // Converts COPY resulting from the Netezza NUMERIC type into a string.
+// Rewritten based on the Netezza implementation of NUMERIC cast to string in
 // src/backend/utils/adt/numeric.c : get_str_from_var() (Note that in the initial source,
 // DEC_DIGITS is always 4 and DBASE is always 10000).
 //
-// Briefly, the Postgres representation of "numeric" is an array of int16_t ("digits")
+// Briefly, the Netezza representation of "numeric" is an array of int16_t ("digits")
 // from most significant to least significant. Each "digit" is a value between 0000 and
 // 9999. There are weight + 1 digits before the decimal point and dscale digits after the
 // decimal point. Both of those values can be zero or negative. A "sign" component
 // encodes the positive or negativeness of the value and is also used to encode special
 // values (inf, -inf, and nan).
-  ArrowErrorCode PostgresCopyNumericFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyNumericFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error) {
     // -1 for NULL
     if (field_size_bytes < 0) {
@@ -221,7 +220,7 @@ namespace adbcpq {
         break;
       default:
         ArrowErrorSet(error,
-                      "Unexpected value for sign read from Postgres numeric field: %d",
+                      "Unexpected value for sign read from Netezza numeric field: %d",
                       static_cast<int>(sign));
         return EINVAL;
     }
@@ -309,8 +308,8 @@ namespace adbcpq {
 
 // Reader for Pg->Arrow conversions whose Arrow representation is simply the
 // bytes of the field representation. This can be used with binary and string
-// Arrow types and any Postgres type.
-  ArrowErrorCode PostgresCopyBinaryFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+// Arrow types and any Netezza type.
+  ArrowErrorCode NetezzaCopyBinaryFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error) {
     // -1 for NULL (0 would be empty string)
     if (field_size_bytes < 0) {
@@ -336,24 +335,24 @@ namespace adbcpq {
   }
 
 
-  void PostgresCopyArrayFieldReader::InitChild(std::unique_ptr<PostgresCopyFieldReader> child) {
+  void NetezzaCopyArrayFieldReader::InitChild(std::unique_ptr<NetezzaCopyFieldReader> child) {
     child_ = std::move(child);
     child_->Init(pg_type_.child(0));
   }
 
-  ArrowErrorCode PostgresCopyArrayFieldReader::InitSchema(ArrowSchema* schema)  {
-    NANOARROW_RETURN_NOT_OK(PostgresCopyFieldReader::InitSchema(schema));
+  ArrowErrorCode NetezzaCopyArrayFieldReader::InitSchema(ArrowSchema* schema)  {
+    NANOARROW_RETURN_NOT_OK(NetezzaCopyFieldReader::InitSchema(schema));
     NANOARROW_RETURN_NOT_OK(child_->InitSchema(schema->children[0]));
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyArrayFieldReader::InitArray(ArrowArray* array)  {
-    NANOARROW_RETURN_NOT_OK(PostgresCopyFieldReader::InitArray(array));
+  ArrowErrorCode NetezzaCopyArrayFieldReader::InitArray(ArrowArray* array)  {
+    NANOARROW_RETURN_NOT_OK(NetezzaCopyFieldReader::InitArray(array));
     NANOARROW_RETURN_NOT_OK(child_->InitArray(array->children[0]));
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyArrayFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyArrayFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error)  {
     if (field_size_bytes <= 0) {
       return ArrowArrayAppendNull(array, 1);
@@ -419,14 +418,14 @@ namespace adbcpq {
   }
 
 
-  void PostgresCopyRecordFieldReader::AppendChild(std::unique_ptr<PostgresCopyFieldReader> child) {
+  void NetezzaCopyRecordFieldReader::AppendChild(std::unique_ptr<NetezzaCopyFieldReader> child) {
     int64_t child_i = static_cast<int64_t>(children_.size());
     children_.push_back(std::move(child));
     children_[child_i]->Init(pg_type_.child(child_i));
   }
 
-  ArrowErrorCode PostgresCopyRecordFieldReader::InitSchema(ArrowSchema* schema)  {
-    NANOARROW_RETURN_NOT_OK(PostgresCopyFieldReader::InitSchema(schema));
+  ArrowErrorCode NetezzaCopyRecordFieldReader::InitSchema(ArrowSchema* schema)  {
+    NANOARROW_RETURN_NOT_OK(NetezzaCopyFieldReader::InitSchema(schema));
     for (int64_t i = 0; i < schema->n_children; i++) {
       NANOARROW_RETURN_NOT_OK(children_[i]->InitSchema(schema->children[i]));
     }
@@ -434,8 +433,8 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyRecordFieldReader::InitArray(ArrowArray* array)  {
-    NANOARROW_RETURN_NOT_OK(PostgresCopyFieldReader::InitArray(array));
+  ArrowErrorCode NetezzaCopyRecordFieldReader::InitArray(ArrowArray* array)  {
+    NANOARROW_RETURN_NOT_OK(NetezzaCopyFieldReader::InitArray(array));
     for (int64_t i = 0; i < array->n_children; i++) {
       NANOARROW_RETURN_NOT_OK(children_[i]->InitArray(array->children[i]));
     }
@@ -443,7 +442,7 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyRecordFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyRecordFieldReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error)  {
     if (field_size_bytes < 0) {
       return ArrowArrayAppendNull(array, 1);
@@ -504,14 +503,14 @@ namespace adbcpq {
 
 // Subtely different from a Record field item: field count is an int16_t
 // instead of an int32_t and each field is not prefixed by its OID.
-  void PostgresCopyFieldTupleReader::AppendChild(std::unique_ptr<PostgresCopyFieldReader> child) {
+  void NetezzaCopyFieldTupleReader::AppendChild(std::unique_ptr<NetezzaCopyFieldReader> child) {
     int64_t child_i = static_cast<int64_t>(children_.size());
     children_.push_back(std::move(child));
     children_[child_i]->Init(pg_type_.child(child_i));
   }
 
-  ArrowErrorCode PostgresCopyFieldTupleReader::InitSchema(ArrowSchema* schema)  {
-    NANOARROW_RETURN_NOT_OK(PostgresCopyFieldReader::InitSchema(schema));
+  ArrowErrorCode NetezzaCopyFieldTupleReader::InitSchema(ArrowSchema* schema)  {
+    NANOARROW_RETURN_NOT_OK(NetezzaCopyFieldReader::InitSchema(schema));
     for (int64_t i = 0; i < schema->n_children; i++) {
       NANOARROW_RETURN_NOT_OK(children_[i]->InitSchema(schema->children[i]));
     }
@@ -519,8 +518,8 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyFieldTupleReader::InitArray(ArrowArray* array)  {
-    NANOARROW_RETURN_NOT_OK(PostgresCopyFieldReader::InitArray(array));
+  ArrowErrorCode NetezzaCopyFieldTupleReader::InitArray(ArrowArray* array)  {
+    NANOARROW_RETURN_NOT_OK(NetezzaCopyFieldReader::InitArray(array));
     for (int64_t i = 0; i < array->n_children; i++) {
       NANOARROW_RETURN_NOT_OK(children_[i]->InitArray(array->children[i]));
     }
@@ -528,7 +527,7 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyFieldTupleReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
+  ArrowErrorCode NetezzaCopyFieldTupleReader::Read(ArrowBufferView* data, int32_t field_size_bytes, ArrowArray* array,
                       ArrowError* error)  {
     int16_t n_fields;
     NANOARROW_RETURN_NOT_OK(ReadChecked<int16_t>(data, &n_fields, error));
@@ -568,13 +567,13 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-// Factory for a PostgresCopyFieldReader that instantiates the proper subclass
-// and gives a nice error for Postgres type -> Arrow type conversions that aren't
+// Factory for a NetezzaCopyFieldReader that instantiates the proper subclass
+// and gives a nice error for Netezza type -> Arrow type conversions that aren't
 // supported.
  ArrowErrorCode ErrorCantConvert(ArrowError* error,
                                               const NetezzaType& pg_type,
                                               const ArrowSchemaView& schema_view) {
-  ArrowErrorSet(error, "Can't convert Postgres type '%s' to Arrow type '%s'",
+  ArrowErrorSet(error, "Can't convert Netezza type '%s' to Arrow type '%s'",
                 pg_type.typname().c_str(),
                 ArrowTypeString(schema_view.type));  // NOLINT(runtime/int)
   return EINVAL;
@@ -582,7 +581,7 @@ namespace adbcpq {
 
  ArrowErrorCode MakeCopyFieldReader(const NetezzaType& pg_type,
                                                  ArrowSchema* schema,
-                                                 PostgresCopyFieldReader** out,
+                                                 NetezzaCopyFieldReader** out,
                                                  ArrowError* error) {
   ArrowSchemaView schema_view;
   NANOARROW_RETURN_NOT_OK(ArrowSchemaViewInit(&schema_view, schema, nullptr));
@@ -591,7 +590,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_BOOL:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kBool:
-          *out = new PostgresCopyBooleanFieldReader();
+          *out = new NetezzaCopyBooleanFieldReader();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -600,7 +599,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_INT8:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kInt1:
-          *out = new PostgresCopyNetworkEndianFieldReader<int8_t>();
+          *out = new NetezzaCopyNetworkEndianFieldReader<int8_t>();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -609,7 +608,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_INT16:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kInt2:
-          *out = new PostgresCopyNetworkEndianFieldReader<int16_t>();
+          *out = new NetezzaCopyNetworkEndianFieldReader<int16_t>();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -620,7 +619,7 @@ namespace adbcpq {
         case NetezzaTypeId::kInt4:
         case NetezzaTypeId::kOid:
         case NetezzaTypeId::kRegproc:
-          *out = new PostgresCopyNetworkEndianFieldReader<int32_t>();
+          *out = new NetezzaCopyNetworkEndianFieldReader<int32_t>();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -629,7 +628,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_INT64:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kInt8:
-          *out = new PostgresCopyNetworkEndianFieldReader<int64_t>();
+          *out = new NetezzaCopyNetworkEndianFieldReader<int64_t>();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -638,7 +637,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_FLOAT:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kFloat4:
-          *out = new PostgresCopyNetworkEndianFieldReader<uint32_t>();
+          *out = new NetezzaCopyNetworkEndianFieldReader<uint32_t>();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -647,7 +646,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_DOUBLE:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kFloat8:
-          *out = new PostgresCopyNetworkEndianFieldReader<uint64_t>();
+          *out = new NetezzaCopyNetworkEndianFieldReader<uint64_t>();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -657,13 +656,18 @@ namespace adbcpq {
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kChar:
         case NetezzaTypeId::kVarchar:
+        case NetezzaTypeId::kNchar:
+        case NetezzaTypeId::kNvarchar:
         case NetezzaTypeId::kText:
         case NetezzaTypeId::kBpchar:
         case NetezzaTypeId::kName:
-          *out = new PostgresCopyBinaryFieldReader();
+        case NetezzaTypeId::kJson:
+        case NetezzaTypeId::kJsonb:
+        case NetezzaTypeId::kJsonpath:
+          *out = new NetezzaCopyBinaryFieldReader();
           return NANOARROW_OK;
         case NetezzaTypeId::kNumeric:
-          *out = new PostgresCopyNumericFieldReader();
+          *out = new NetezzaCopyNumericFieldReader();
           return NANOARROW_OK;
         default:
           return ErrorCantConvert(error, pg_type, schema_view);
@@ -671,8 +675,8 @@ namespace adbcpq {
 
     case NANOARROW_TYPE_BINARY:
       // No need to check pg_type here: we can return the bytes of any
-      // Postgres type as binary.
-      *out = new PostgresCopyBinaryFieldReader();
+      // Netezza type as binary.
+      *out = new NetezzaCopyBinaryFieldReader();
       return NANOARROW_OK;
 
     case NANOARROW_TYPE_LIST:
@@ -680,19 +684,19 @@ namespace adbcpq {
         case NetezzaTypeId::kUnkbinary: {
           if (pg_type.n_children() != 1) {
             ArrowErrorSet(
-                error, "Expected Postgres array type to have one child but found %ld",
+                error, "Expected Netezza array type to have one child but found %ld",
                 static_cast<long>(pg_type.n_children()));  // NOLINT(runtime/int)
             return EINVAL;
           }
 
-          auto array_reader = std::unique_ptr<PostgresCopyArrayFieldReader>(
-              new PostgresCopyArrayFieldReader());
+          auto array_reader = std::unique_ptr<NetezzaCopyArrayFieldReader>(
+              new NetezzaCopyArrayFieldReader());
           array_reader->Init(pg_type);
 
-          PostgresCopyFieldReader* child_reader;
+          NetezzaCopyFieldReader* child_reader;
           NANOARROW_RETURN_NOT_OK(MakeCopyFieldReader(
               pg_type.child(0), schema->children[0], &child_reader, error));
-          array_reader->InitChild(std::unique_ptr<PostgresCopyFieldReader>(child_reader));
+          array_reader->InitChild(std::unique_ptr<NetezzaCopyFieldReader>(child_reader));
 
           *out = array_reader.release();
           return NANOARROW_OK;
@@ -706,23 +710,23 @@ namespace adbcpq {
         case NetezzaTypeId::kUnkbinary: {
           if (pg_type.n_children() != schema->n_children) {
             ArrowErrorSet(error,
-                          "Can't convert Postgres record type with %ld chlidren to Arrow "
+                          "Can't convert Netezza record type with %ld chlidren to Arrow "
                           "struct type with %ld children",
                           static_cast<long>(pg_type.n_children()),  // NOLINT(runtime/int)
                           static_cast<long>(schema->n_children));   // NOLINT(runtime/int)
             return EINVAL;
           }
 
-          auto record_reader = std::unique_ptr<PostgresCopyRecordFieldReader>(
-              new PostgresCopyRecordFieldReader());
+          auto record_reader = std::unique_ptr<NetezzaCopyRecordFieldReader>(
+              new NetezzaCopyRecordFieldReader());
           record_reader->Init(pg_type);
 
           for (int64_t i = 0; i < pg_type.n_children(); i++) {
-            PostgresCopyFieldReader* child_reader;
+            NetezzaCopyFieldReader* child_reader;
             NANOARROW_RETURN_NOT_OK(MakeCopyFieldReader(
                 pg_type.child(i), schema->children[i], &child_reader, error));
             record_reader->AppendChild(
-                std::unique_ptr<PostgresCopyFieldReader>(child_reader));
+                std::unique_ptr<NetezzaCopyFieldReader>(child_reader));
           }
 
           *out = record_reader.release();
@@ -735,13 +739,13 @@ namespace adbcpq {
     case NANOARROW_TYPE_DATE32: {
       // 2000-01-01
       // Stores number of DAYS since start of epoch - 1970-01-01.
-      constexpr int32_t kPostgresDateEpoch = 10957;
-      *out = new PostgresCopyNetworkEndianFieldReader<int32_t, kPostgresDateEpoch>();
+      constexpr int32_t kNetezzaDateEpoch = 10957;
+      *out = new NetezzaCopyNetworkEndianFieldReader<int32_t, kNetezzaDateEpoch>();
       return NANOARROW_OK;
     }
 
     case NANOARROW_TYPE_TIME64: {
-      *out = new PostgresCopyNetworkEndianFieldReader<int64_t>();
+      *out = new NetezzaCopyNetworkEndianFieldReader<int64_t>();
       return NANOARROW_OK;
     }
 
@@ -749,9 +753,9 @@ namespace adbcpq {
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kTimestamp: {
           // 2000-01-01 00:00:00.000000 in microseconds
-          constexpr int64_t kPostgresTimestampEpoch = 946684800000000;
-          *out = new PostgresCopyNetworkEndianFieldReader<int64_t,
-                                                          kPostgresTimestampEpoch>();
+          constexpr int64_t kNetezzaTimestampEpoch = 946684800000000;
+          *out = new NetezzaCopyNetworkEndianFieldReader<int64_t,
+                                                          kNetezzaTimestampEpoch>();
           return NANOARROW_OK;
         }
         default:
@@ -760,7 +764,7 @@ namespace adbcpq {
     case NANOARROW_TYPE_INTERVAL_MONTH_DAY_NANO:
       switch (pg_type.type_id()) {
         case NetezzaTypeId::kInterval: {
-          *out = new PostgresCopyIntervalFieldReader();
+          *out = new NetezzaCopyIntervalFieldReader();
           return NANOARROW_OK;
         }
         default:
@@ -772,7 +776,7 @@ namespace adbcpq {
   }
 }
 
-  ArrowErrorCode PostgresCopyStreamReader::Init(NetezzaType pg_type) {
+  ArrowErrorCode NetezzaCopyStreamReader::Init(NetezzaType pg_type) {
 
     pg_type_ = std::move(pg_type);
     root_reader_.Init(pg_type_);
@@ -780,9 +784,9 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  int64_t PostgresCopyStreamReader::array_size_approx_bytes() const { return array_size_approx_bytes_; }
+  int64_t NetezzaCopyStreamReader::array_size_approx_bytes() const { return array_size_approx_bytes_; }
 
-  ArrowErrorCode PostgresCopyStreamReader::SetOutputSchema(ArrowSchema* schema, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamReader::SetOutputSchema(ArrowSchema* schema, ArrowError* error) {
     if (std::string(schema_->format) != "+s") {
       ArrowErrorSet(
           error,
@@ -793,7 +797,7 @@ namespace adbcpq {
 
     if (schema_->n_children != root_reader_.InputType().n_children()) {
       ArrowErrorSet(error,
-                    "Expected output schema with %ld columns to match Postgres input but "
+                    "Expected output schema with %ld columns to match Netezza input but "
                     "got schema with %ld columns",
                     static_cast<long>(  // NOLINT(runtime/int)
                         root_reader_.InputType().n_children()),
@@ -805,14 +809,14 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamReader::InferOutputSchema(ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamReader::InferOutputSchema(ArrowError* error) {
     schema_.reset();
     ArrowSchemaInit(schema_.get());
     NANOARROW_RETURN_NOT_OK(root_reader_.InputType().SetSchema(schema_.get()));
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamReader::InitFieldReaders(ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamReader::InitFieldReaders(ArrowError* error) {
     if (schema_->release == nullptr) {
       return EINVAL;
     }
@@ -821,17 +825,17 @@ namespace adbcpq {
 
     for (int64_t i = 0; i < root_type.n_children(); i++) {
       const NetezzaType& child_type = root_type.child(i);
-      PostgresCopyFieldReader* child_reader;
+      NetezzaCopyFieldReader* child_reader;
       MakeCopyFieldReader(child_type, schema_->children[i], &child_reader, error);
       //NANOARROW_RETURN_NOT_OK(MakeCopyFieldReader(child_type, schema_->children[i], &child_reader, error));
-      root_reader_.AppendChild(std::unique_ptr<PostgresCopyFieldReader>(child_reader));
+      root_reader_.AppendChild(std::unique_ptr<NetezzaCopyFieldReader>(child_reader));
     }
 
     NANOARROW_RETURN_NOT_OK(root_reader_.InitSchema(schema_.get()));
     return NANOARROW_OK;
   }
 
-  /*ArrowErrorCode PostgresCopyStreamReader::ReadHeader(ArrowBufferView* data, ArrowError* error) {
+  /*ArrowErrorCode NetezzaCopyStreamReader::ReadHeader(ArrowBufferView* data, ArrowError* error) {
     // Commented as unused, kept for reference.
     if (data->size_bytes < static_cast<int64_t>(sizeof(kPgCopyBinarySignature))) {
       ArrowErrorSet(
@@ -871,7 +875,7 @@ namespace adbcpq {
     return NANOARROW_OK;
   }*/
 
-  ArrowErrorCode PostgresCopyStreamReader::ReadRecord(ArrowBufferView* data, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamReader::ReadRecord(ArrowBufferView* data, ArrowError* error) {
     if (array_->release == nullptr) {
       NANOARROW_RETURN_NOT_OK(ArrowArrayInitFromSchema(array_.get(), schema_.get(), error));
       NANOARROW_RETURN_NOT_OK(ArrowArrayStartAppending(array_.get()));
@@ -885,11 +889,11 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamReader::GetSchema(ArrowSchema* out) {
+  ArrowErrorCode NetezzaCopyStreamReader::GetSchema(ArrowSchema* out) {
     return ArrowSchemaDeepCopy(schema_.get(), out);
   }
 
-  ArrowErrorCode PostgresCopyStreamReader::GetArray(ArrowArray* out, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamReader::GetArray(ArrowArray* out, ArrowError* error) {
     if (array_->release == nullptr) {
       return EINVAL;
     }
@@ -899,22 +903,22 @@ namespace adbcpq {
     return NANOARROW_OK;
   }
 
-  const NetezzaType& PostgresCopyStreamReader::pg_type() const { return pg_type_; }
+  const NetezzaType& NetezzaCopyStreamReader::pg_type() const { return pg_type_; }
 
 
-  void PostgresCopyFieldWriter::Init(struct ArrowArrayView* array_view) { array_view_ = array_view; }
+  void NetezzaCopyFieldWriter::Init(struct ArrowArrayView* array_view) { array_view_ = array_view; }
 
-  ArrowErrorCode PostgresCopyFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) {
     return ENOTSUP;
   }
 
-  void PostgresCopyFieldTupleWriter::AppendChild(std::unique_ptr<PostgresCopyFieldWriter> child) {
+  void NetezzaCopyFieldTupleWriter::AppendChild(std::unique_ptr<NetezzaCopyFieldWriter> child) {
     int64_t child_i = static_cast<int64_t>(children_.size());
     children_.push_back(std::move(child));
     children_[child_i]->Init(array_view_->children[child_i]);
   }
 
-  ArrowErrorCode PostgresCopyFieldTupleWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyFieldTupleWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     if (index >= array_view_->length) {
       return ENODATA;
     }
@@ -935,7 +939,7 @@ namespace adbcpq {
     return NANOARROW_OK;
   } 
 
-  ArrowErrorCode PostgresCopyBooleanFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyBooleanFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     constexpr int32_t field_size_bytes = 1;
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
     const int8_t value =
@@ -946,7 +950,7 @@ namespace adbcpq {
   }
 
 template <typename T, T kOffset>
-  ArrowErrorCode PostgresCopyNetworkEndianFieldWriter<T, kOffset>::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyNetworkEndianFieldWriter<T, kOffset>::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     constexpr int32_t field_size_bytes = sizeof(T);
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
     const T value =
@@ -956,7 +960,7 @@ template <typename T, T kOffset>
     return ADBC_STATUS_OK;
   }
 
-  ArrowErrorCode PostgresCopyFloatFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyFloatFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     constexpr int32_t field_size_bytes = sizeof(uint32_t);
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
 
@@ -968,7 +972,7 @@ template <typename T, T kOffset>
     return ADBC_STATUS_OK;
   }
 
-  ArrowErrorCode PostgresCopyDoubleFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyDoubleFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     constexpr int32_t field_size_bytes = sizeof(uint64_t);
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
 
@@ -980,7 +984,7 @@ template <typename T, T kOffset>
     return ADBC_STATUS_OK;
   }
 
-  ArrowErrorCode PostgresCopyIntervalFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyIntervalFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) {
     constexpr int32_t field_size_bytes = 16;
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
 
@@ -996,7 +1000,7 @@ template <typename T, T kOffset>
   }
 
 template <enum ArrowTimeUnit TU>
-  ArrowErrorCode PostgresCopyDurationFieldWriter<TU>::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) {
+  ArrowErrorCode NetezzaCopyDurationFieldWriter<TU>::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error) {
     constexpr int32_t field_size_bytes = 16;
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
 
@@ -1042,7 +1046,7 @@ template <enum ArrowTimeUnit TU>
     return ADBC_STATUS_OK;
   }
 
-  ArrowErrorCode PostgresCopyBinaryFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyBinaryFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     struct ArrowBufferView buffer_view = ArrowArrayViewGetBytesUnsafe(array_view_, index);
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, buffer_view.size_bytes, error));
     NANOARROW_RETURN_NOT_OK(
@@ -1051,7 +1055,7 @@ template <enum ArrowTimeUnit TU>
     return ADBC_STATUS_OK;
   }
 
-  ArrowErrorCode PostgresCopyBinaryDictFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyBinaryDictFieldWriter::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     int64_t dict_index = ArrowArrayViewGetIntUnsafe(array_view_, index);
     if (ArrowArrayViewIsNull(array_view_->dictionary, dict_index)) {
       constexpr int32_t field_size_bytes = -1;
@@ -1069,7 +1073,7 @@ template <enum ArrowTimeUnit TU>
   }
 
 template <enum ArrowTimeUnit TU>
-  ArrowErrorCode PostgresCopyTimestampFieldWriter<TU>::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
+  ArrowErrorCode NetezzaCopyTimestampFieldWriter<TU>::Write(ArrowBuffer* buffer, int64_t index, ArrowError* error)  {
     constexpr int32_t field_size_bytes = sizeof(int64_t);
     NANOARROW_RETURN_NOT_OK(WriteChecked<int32_t>(buffer, field_size_bytes, error));
 
@@ -1106,7 +1110,7 @@ template <enum ArrowTimeUnit TU>
       return ADBC_STATUS_INVALID_ARGUMENT;
     }
 
-    if (value < std::numeric_limits<int64_t>::min() + kPostgresTimestampEpoch) {
+    if (value < std::numeric_limits<int64_t>::min() + kNetezzaTimestampEpoch) {
       ArrowErrorSet(error,
                     "[libpq] Row %" PRId64 " timestamp value %" PRId64
                     " with unit %d would underflow",
@@ -1114,7 +1118,7 @@ template <enum ArrowTimeUnit TU>
       return ADBC_STATUS_INVALID_ARGUMENT;
     }
 
-    const int64_t scaled = value - kPostgresTimestampEpoch;
+    const int64_t scaled = value - kNetezzaTimestampEpoch;
     NANOARROW_RETURN_NOT_OK(WriteChecked<int64_t>(buffer, scaled, error));
 
     return ADBC_STATUS_OK;
@@ -1122,75 +1126,75 @@ template <enum ArrowTimeUnit TU>
 
 
  ArrowErrorCode MakeCopyFieldWriter(struct ArrowSchema* schema,
-                                                 PostgresCopyFieldWriter** out,
+                                                 NetezzaCopyFieldWriter** out,
                                                  ArrowError* error) {
   struct ArrowSchemaView schema_view;
   NANOARROW_RETURN_NOT_OK(ArrowSchemaViewInit(&schema_view, schema, error));
 
   switch (schema_view.type) {
     case NANOARROW_TYPE_BOOL:
-      *out = new PostgresCopyBooleanFieldWriter();
+      *out = new NetezzaCopyBooleanFieldWriter();
       return NANOARROW_OK;
     case NANOARROW_TYPE_INT8:
     case NANOARROW_TYPE_INT16:
-      *out = new PostgresCopyNetworkEndianFieldWriter<int16_t>();
+      *out = new NetezzaCopyNetworkEndianFieldWriter<int16_t>();
       return NANOARROW_OK;
     case NANOARROW_TYPE_INT32:
-      *out = new PostgresCopyNetworkEndianFieldWriter<int32_t>();
+      *out = new NetezzaCopyNetworkEndianFieldWriter<int32_t>();
       return NANOARROW_OK;
     case NANOARROW_TYPE_INT64:
-      *out = new PostgresCopyNetworkEndianFieldWriter<int64_t>();
+      *out = new NetezzaCopyNetworkEndianFieldWriter<int64_t>();
       return NANOARROW_OK;
     case NANOARROW_TYPE_DATE32: {
-      constexpr int32_t kPostgresDateEpoch = 10957;
-      *out = new PostgresCopyNetworkEndianFieldWriter<int32_t, kPostgresDateEpoch>();
+      constexpr int32_t kNetezzaDateEpoch = 10957;
+      *out = new NetezzaCopyNetworkEndianFieldWriter<int32_t, kNetezzaDateEpoch>();
       return NANOARROW_OK;
     }
     case NANOARROW_TYPE_FLOAT:
-      *out = new PostgresCopyFloatFieldWriter();
+      *out = new NetezzaCopyFloatFieldWriter();
       return NANOARROW_OK;
     case NANOARROW_TYPE_DOUBLE:
-      *out = new PostgresCopyDoubleFieldWriter();
+      *out = new NetezzaCopyDoubleFieldWriter();
       return NANOARROW_OK;
     case NANOARROW_TYPE_BINARY:
     case NANOARROW_TYPE_STRING:
     case NANOARROW_TYPE_LARGE_STRING:
-      *out = new PostgresCopyBinaryFieldWriter();
+      *out = new NetezzaCopyBinaryFieldWriter();
       return NANOARROW_OK;
     case NANOARROW_TYPE_TIMESTAMP: {
       switch (schema_view.time_unit) {
         case NANOARROW_TIME_UNIT_NANO:
-          *out = new PostgresCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_NANO>();
+          *out = new NetezzaCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_NANO>();
           break;
         case NANOARROW_TIME_UNIT_MILLI:
-          *out = new PostgresCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_MILLI>();
+          *out = new NetezzaCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_MILLI>();
           break;
         case NANOARROW_TIME_UNIT_MICRO:
-          *out = new PostgresCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_MICRO>();
+          *out = new NetezzaCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_MICRO>();
           break;
         case NANOARROW_TIME_UNIT_SECOND:
-          *out = new PostgresCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_SECOND>();
+          *out = new NetezzaCopyTimestampFieldWriter<NANOARROW_TIME_UNIT_SECOND>();
           break;
       }
       return NANOARROW_OK;
     }
     case NANOARROW_TYPE_INTERVAL_MONTH_DAY_NANO:
-      *out = new PostgresCopyIntervalFieldWriter();
+      *out = new NetezzaCopyIntervalFieldWriter();
       return NANOARROW_OK;
     case NANOARROW_TYPE_DURATION: {
       switch (schema_view.time_unit) {
         case NANOARROW_TIME_UNIT_SECOND:
-          *out = new PostgresCopyDurationFieldWriter<NANOARROW_TIME_UNIT_SECOND>();
+          *out = new NetezzaCopyDurationFieldWriter<NANOARROW_TIME_UNIT_SECOND>();
           break;
         case NANOARROW_TIME_UNIT_MILLI:
-          *out = new PostgresCopyDurationFieldWriter<NANOARROW_TIME_UNIT_MILLI>();
+          *out = new NetezzaCopyDurationFieldWriter<NANOARROW_TIME_UNIT_MILLI>();
           break;
         case NANOARROW_TIME_UNIT_MICRO:
-          *out = new PostgresCopyDurationFieldWriter<NANOARROW_TIME_UNIT_MICRO>();
+          *out = new NetezzaCopyDurationFieldWriter<NANOARROW_TIME_UNIT_MICRO>();
 
           break;
         case NANOARROW_TIME_UNIT_NANO:
-          *out = new PostgresCopyDurationFieldWriter<NANOARROW_TIME_UNIT_NANO>();
+          *out = new NetezzaCopyDurationFieldWriter<NANOARROW_TIME_UNIT_NANO>();
           break;
       }
       return NANOARROW_OK;
@@ -1204,7 +1208,7 @@ template <enum ArrowTimeUnit TU>
         case NANOARROW_TYPE_STRING:
         case NANOARROW_TYPE_LARGE_BINARY:
         case NANOARROW_TYPE_LARGE_STRING:
-          *out = new PostgresCopyBinaryDictFieldWriter();
+          *out = new NetezzaCopyBinaryDictFieldWriter();
           return NANOARROW_OK;
         default:
           break;
@@ -1218,7 +1222,7 @@ template <enum ArrowTimeUnit TU>
   return EINVAL;
 }
 
-  ArrowErrorCode PostgresCopyStreamWriter::Init(struct ArrowSchema* schema) {
+  ArrowErrorCode NetezzaCopyStreamWriter::Init(struct ArrowSchema* schema) {
     schema_ = schema;
     NANOARROW_RETURN_NOT_OK(
         ArrowArrayViewInitFromSchema(&array_view_.value, schema, nullptr));
@@ -1227,12 +1231,12 @@ template <enum ArrowTimeUnit TU>
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamWriter::SetArray(struct ArrowArray* array) {
+  ArrowErrorCode NetezzaCopyStreamWriter::SetArray(struct ArrowArray* array) {
     NANOARROW_RETURN_NOT_OK(ArrowArrayViewSetArray(&array_view_.value, array, nullptr));
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamWriter::WriteHeader(ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamWriter::WriteHeader(ArrowError* error) {
     // Commented as unused, kept for reference.
     // NANOARROW_RETURN_NOT_OK(ArrowBufferAppend(&buffer_.value, kPgCopyBinarySignature,
     //                                           sizeof(kPgCopyBinarySignature)));
@@ -1248,30 +1252,30 @@ template <enum ArrowTimeUnit TU>
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamWriter::WriteRecord(ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamWriter::WriteRecord(ArrowError* error) {
     NANOARROW_RETURN_NOT_OK(root_writer_.Write(&buffer_.value, records_written_, error));
     records_written_++;
     return NANOARROW_OK;
   }
 
-  ArrowErrorCode PostgresCopyStreamWriter::InitFieldWriters(ArrowError* error) {
+  ArrowErrorCode NetezzaCopyStreamWriter::InitFieldWriters(ArrowError* error) {
     if (schema_->release == nullptr) {
       return EINVAL;
     }
 
     for (int64_t i = 0; i < schema_->n_children; i++) {
-      PostgresCopyFieldWriter* child_writer = nullptr;
+      NetezzaCopyFieldWriter* child_writer = nullptr;
       NANOARROW_RETURN_NOT_OK(
           MakeCopyFieldWriter(schema_->children[i], &child_writer, error));
-      root_writer_.AppendChild(std::unique_ptr<PostgresCopyFieldWriter>(child_writer));
+      root_writer_.AppendChild(std::unique_ptr<NetezzaCopyFieldWriter>(child_writer));
     }
 
     return NANOARROW_OK;
   }
 
-  const struct ArrowBuffer& PostgresCopyStreamWriter::WriteBuffer() const { return buffer_.value; }
+  const struct ArrowBuffer& NetezzaCopyStreamWriter::WriteBuffer() const { return buffer_.value; }
 
-  void PostgresCopyStreamWriter::Rewind() {
+  void NetezzaCopyStreamWriter::Rewind() {
     records_written_ = 0;
     buffer_->size_bytes = 0;
   }

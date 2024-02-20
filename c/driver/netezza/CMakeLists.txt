@@ -28,7 +28,7 @@ add_arrow_lib(adbc_driver_netezza
               netezza.cc
               result_helper.cc
               statement.cc
-	      postgres_copy_reader.cc
+	            netezza_copy_reader.cc
               OUTPUTS
               ADBC_LIBRARIES
               CMAKE_PACKAGE_NAME
@@ -73,8 +73,8 @@ if(ADBC_BUILD_TESTS)
                 EXTRA_LABELS
                 driver-netezza
                 SOURCES
-                postgres_type_test.cc
-                postgres_copy_reader_test.cc
+                netezza_type_test.cc
+                netezza_copy_reader_test.cc
                 netezza_test.cc
                 EXTRA_LINK_LIBS
                 adbc_driver_common

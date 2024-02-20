@@ -27,15 +27,15 @@
 #include <nanoarrow/nanoarrow.h>
 
 #include "common/utils.h"
-#include "postgres_copy_reader.h"
-#include "postgres_type.h"
+#include "netezza_copy_reader.h"
+#include "netezza_type.h"
 
 #define ADBC_NETEZZA_OPTION_BATCH_SIZE_HINT_BYTES \
   "adbc.netezza.batch_size_hint_bytes"
 
 namespace adbcpq {
-class PostgresConnection;
-class PostgresStatement;
+class NetezzaConnection;
+class NetezzaStatement;
 
 /// \brief An ArrowArrayStream that reads tuples from a PGresult.
 class TupleReader final {
@@ -64,7 +64,7 @@ class TupleReader final {
                                                       AdbcStatusCode* status);
 
  private:
-  friend class PostgresStatement;
+  friend class NetezzaStatement;
 
   int InitResultArray(struct ArrowError* error);
   int NZInitQueryAndFetchFirst(struct ArrowError* error);
@@ -85,15 +85,15 @@ class TupleReader final {
   struct ArrowBufferView buffer_view_;
   struct ArrowArray result_array;
   struct ArrowSchema result_schema;
-  std::unique_ptr<PostgresCopyStreamReader> copy_reader_;
+  std::unique_ptr<NetezzaCopyStreamReader> copy_reader_;
   int64_t row_id_;
   int64_t batch_size_hint_bytes_;
   bool is_finished_;
 };
 
-class PostgresStatement {
+class NetezzaStatement {
  public:
-  PostgresStatement()
+  NetezzaStatement()
       : connection_(nullptr), query_(), prepared_(false), reader_(nullptr) {
     std::memset(&bind_, 0, sizeof(bind_));
   }
@@ -143,7 +143,7 @@ class PostgresStatement {
 
  private:
   std::shared_ptr<NetezzaTypeResolver> type_resolver_;
-  std::shared_ptr<PostgresConnection> connection_;
+  std::shared_ptr<NetezzaConnection> connection_;
 
   // Query state
   std::string query_;

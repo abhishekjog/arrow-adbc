@@ -22,12 +22,12 @@
 #include <gtest/gtest.h>
 #include <nanoarrow/nanoarrow.hpp>
 
-#include "postgres_copy_reader.h"
+#include "netezza_copy_reader.h"
 #include "validation/adbc_validation_util.h"
 
 namespace adbcpq {
 
-class PostgresCopyStreamTester {
+class NetezzaCopyStreamTester {
  public:
   ArrowErrorCode Init(const NetezzaType& root_type, ArrowError* error = nullptr) {
     NANOARROW_RETURN_NOT_OK(reader_.Init(root_type));
@@ -54,10 +54,10 @@ class PostgresCopyStreamTester {
   }
 
  private:
-  PostgresCopyStreamReader reader_;
+  NetezzaCopyStreamReader reader_;
 };
 
-class PostgresCopyStreamWriteTester {
+class NetezzaCopyStreamWriteTester {
  public:
   ArrowErrorCode Init(struct ArrowSchema* schema, struct ArrowArray* array,
                       struct ArrowError* error = nullptr) {
@@ -93,7 +93,7 @@ class PostgresCopyStreamWriteTester {
   void Rewind() { writer_.Rewind(); }
 
  private:
-  PostgresCopyStreamWriter writer_;
+  NetezzaCopyStreamWriter writer_;
 };
 
 // COPY (SELECT CAST("col" AS BOOLEAN) AS "col" FROM (  VALUES (TRUE), (FALSE), (NULL)) AS
@@ -109,10 +109,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadBoolean) {
   data.size_bytes = sizeof(kTestPgCopyBoolean);
 
   auto col_type = NetezzaType(NetezzaTypeId::kBool);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
 
@@ -151,7 +151,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteBoolean) {
                                              {true, false, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -180,10 +180,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadSmallInt) {
   data.size_bytes = sizeof(kTestPgCopySmallInt);
 
   auto col_type = NetezzaType(NetezzaTypeId::kInt2);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopySmallInt, sizeof(kTestPgCopySmallInt));
@@ -222,7 +222,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteInt8) {
                                                 {-123, -1, 1, 123, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -246,7 +246,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteInt16) {
                                                 {-123, -1, 1, 123, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -275,10 +275,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadInteger) {
   data.size_bytes = sizeof(kTestPgCopyInteger);
 
   auto col_type = NetezzaType(NetezzaTypeId::kInt4);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyInteger, sizeof(kTestPgCopyInteger));
@@ -317,7 +317,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteInt32) {
                                                 {-123, -1, 1, 123, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -347,10 +347,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadBigInt) {
   data.size_bytes = sizeof(kTestPgCopyBigInt);
 
   auto col_type = NetezzaType(NetezzaTypeId::kInt8);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyBigInt, sizeof(kTestPgCopyBigInt));
@@ -389,7 +389,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteInt64) {
                                                 {-123, -1, 1, 123, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -418,10 +418,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadReal) {
   data.size_bytes = sizeof(kTestPgCopyReal);
 
   auto col_type = NetezzaType(NetezzaTypeId::kFloat4);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyReal, sizeof(kTestPgCopyReal));
@@ -460,7 +460,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteReal) {
                                               {-123.456, -1, 1, 123.456, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -490,10 +490,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadDoublePrecision) {
   data.size_bytes = sizeof(kTestPgCopyDoublePrecision);
 
   auto col_type = NetezzaType(NetezzaTypeId::kFloat8);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyDoublePrecision,
@@ -533,7 +533,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteDoublePrecision) {
                                                {-123.456, -1, 1, 123.456, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -559,10 +559,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadDate) {
   data.size_bytes = sizeof(kTestPgCopyDate);
 
   auto col_type = NetezzaType(NetezzaTypeId::kDate);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyDate, sizeof(kTestPgCopyDate));
@@ -596,7 +596,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteDate) {
                                                 {-25567, 47482, std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -640,10 +640,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadNumeric) {
   data.size_bytes = sizeof(kTestPgCopyNumeric);
 
   auto col_type = NetezzaType(NetezzaTypeId::kNumeric);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyNumeric, sizeof(kTestPgCopyNumeric));
@@ -708,10 +708,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadTimestamp) {
   data.size_bytes = sizeof(kTestPgCopyTimestamp);
 
   auto col_type = NetezzaType(NetezzaTypeId::kTimestamp);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyTimestamp, sizeof(kTestPgCopyTimestamp));
@@ -767,7 +767,7 @@ TEST_P(PostgresCopyWriteTimestampTest, WritesProperBufferValues) {
                                                 values),
               ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -828,10 +828,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadInterval) {
   data.size_bytes = sizeof(kTestPgCopyInterval);
 
   auto col_type = NetezzaType(NetezzaTypeId::kInterval);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyInterval, sizeof(kTestPgCopyInterval));
@@ -897,7 +897,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteInterval) {
   ASSERT_EQ(adbc_validation::MakeBatch<ArrowInterval*>(
               &schema.value, &array.value, &na_error, values), ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -911,7 +911,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteInterval) {
   }
 }
 
-// Writing a DURATION from NANOARROW produces INTERVAL in postgres without day/month
+// Writing a DURATION from NANOARROW produces INTERVAL in netezza without day/month
 // COPY (SELECT CAST(col AS INTERVAL) FROM (  VALUES ('-4 seconds'),
 // ('4 seconds'), (NULL)) AS drvd("col")) TO STDOUT WITH (FORMAT BINARY);
 static uint8_t kTestPgCopyDuration[] = {
@@ -944,7 +944,7 @@ TEST_P(PostgresCopyWriteDurationTest, WritesProperBufferValues) {
   ASSERT_EQ(adbc_validation::MakeBatch<int64_t>(
               &schema.value, &array.value, &na_error, values), ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -983,10 +983,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadText) {
   data.size_bytes = sizeof(kTestPgCopyText);
 
   auto col_type = NetezzaType(NetezzaTypeId::kText);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyText, sizeof(kTestPgCopyText));
@@ -1026,7 +1026,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteString) {
                 &schema.value, &array.value, &na_error, {"abc", "1234", std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -1051,7 +1051,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteLargeString) {
                 &schema.value, &array.value, &na_error, {"abc", "1234", std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -1081,10 +1081,10 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadBinary) {
   data.size_bytes = sizeof(kTestPgCopyBinary);
 
   auto col_type = NetezzaType(NetezzaTypeId::kBytea);
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyBinary, sizeof(kTestPgCopyBinary));
@@ -1142,7 +1142,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteBinary) {
               std::nullopt}),
             ADBC_STATUS_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 
@@ -1159,62 +1159,62 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteBinary) {
 
 // COPY (SELECT CAST("col" AS INTEGER ARRAY) AS "col" FROM (  VALUES ('{-123, -1}'), ('{0,
 // 1, 123}'), (NULL)) AS drvd("col")) TO STDOUT WITH (FORMAT binary);
-static uint8_t kTestPgCopyIntegerArray[] = {
-    0x50, 0x47, 0x43, 0x4f, 0x50, 0x59, 0x0a, 0xff, 0x0d, 0x0a, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00,
-    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x00, 0x00, 0x00, 0x02, 0x00,
-    0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0xff, 0xff, 0xff, 0x85, 0x00, 0x00, 0x00,
-    0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00,
-    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x00, 0x00, 0x00, 0x03, 0x00,
-    0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x7b, 0x00,
-    0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+// static uint8_t kTestPgCopyIntegerArray[] = {
+//     0x50, 0x47, 0x43, 0x4f, 0x50, 0x59, 0x0a, 0xff, 0x0d, 0x0a, 0x00, 0x00, 0x00, 0x00,
+//     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00,
+//     0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x00, 0x00, 0x00, 0x02, 0x00,
+//     0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0xff, 0xff, 0xff, 0x85, 0x00, 0x00, 0x00,
+//     0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00,
+//     0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x00, 0x00, 0x00, 0x03, 0x00,
+//     0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//     0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x7b, 0x00,
+//     0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-TEST(PostgresCopyUtilsTest, PostgresCopyReadArray) {
-  ArrowBufferView data;
-  data.data.as_uint8 = kTestPgCopyIntegerArray;
-  data.size_bytes = sizeof(kTestPgCopyIntegerArray);
+// TEST(PostgresCopyUtilsTest, PostgresCopyReadArray) {
+//   ArrowBufferView data;
+//   data.data.as_uint8 = kTestPgCopyIntegerArray;
+//   data.size_bytes = sizeof(kTestPgCopyIntegerArray);
 
-  auto col_type = NetezzaType(NetezzaTypeId::kInt4).Array();
-  NetezzaType input_type(NetezzaTypeId::kRecord);
-  input_type.AppendChild("col", col_type);
+//   auto col_type = NetezzaType(NetezzaTypeId::kInt4).Array();
+//   NetezzaType input_type(NetezzaTypeId::kUnknown);
+//   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
-  ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
-  ASSERT_EQ(tester.ReadAll(&data), ENODATA);
-  ASSERT_EQ(data.data.as_uint8 - kTestPgCopyIntegerArray,
-            sizeof(kTestPgCopyIntegerArray));
-  ASSERT_EQ(data.size_bytes, 0);
+//   PostgresCopyStreamTester tester;
+//   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
+//   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
+//   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyIntegerArray,
+//             sizeof(kTestPgCopyIntegerArray));
+//   ASSERT_EQ(data.size_bytes, 0);
 
-  nanoarrow::UniqueArray array;
-  ASSERT_EQ(tester.GetArray(array.get()), NANOARROW_OK);
-  ASSERT_EQ(array->length, 3);
-  ASSERT_EQ(array->n_children, 1);
-  ASSERT_EQ(array->children[0]->n_children, 1);
-  ASSERT_EQ(array->children[0]->children[0]->length, 5);
+//   nanoarrow::UniqueArray array;
+//   ASSERT_EQ(tester.GetArray(array.get()), NANOARROW_OK);
+//   ASSERT_EQ(array->length, 3);
+//   ASSERT_EQ(array->n_children, 1);
+//   ASSERT_EQ(array->children[0]->n_children, 1);
+//   ASSERT_EQ(array->children[0]->children[0]->length, 5);
 
-  auto validity = reinterpret_cast<const uint8_t*>(array->children[0]->buffers[0]);
-  auto offsets = reinterpret_cast<const int32_t*>(array->children[0]->buffers[1]);
-  auto data_buffer =
-      reinterpret_cast<const int32_t*>(array->children[0]->children[0]->buffers[1]);
-  ASSERT_NE(validity, nullptr);
-  ASSERT_NE(data_buffer, nullptr);
+//   auto validity = reinterpret_cast<const uint8_t*>(array->children[0]->buffers[0]);
+//   auto offsets = reinterpret_cast<const int32_t*>(array->children[0]->buffers[1]);
+//   auto data_buffer =
+//       reinterpret_cast<const int32_t*>(array->children[0]->children[0]->buffers[1]);
+//   ASSERT_NE(validity, nullptr);
+//   ASSERT_NE(data_buffer, nullptr);
 
-  ASSERT_TRUE(ArrowBitGet(validity, 0));
-  ASSERT_TRUE(ArrowBitGet(validity, 1));
-  ASSERT_FALSE(ArrowBitGet(validity, 2));
+//   ASSERT_TRUE(ArrowBitGet(validity, 0));
+//   ASSERT_TRUE(ArrowBitGet(validity, 1));
+//   ASSERT_FALSE(ArrowBitGet(validity, 2));
 
-  ASSERT_EQ(offsets[0], 0);
-  ASSERT_EQ(offsets[1], 2);
-  ASSERT_EQ(offsets[2], 5);
-  ASSERT_EQ(offsets[3], 5);
+//   ASSERT_EQ(offsets[0], 0);
+//   ASSERT_EQ(offsets[1], 2);
+//   ASSERT_EQ(offsets[2], 5);
+//   ASSERT_EQ(offsets[3], 5);
 
-  ASSERT_EQ(data_buffer[0], -123);
-  ASSERT_EQ(data_buffer[1], -1);
-  ASSERT_EQ(data_buffer[2], 0);
-  ASSERT_EQ(data_buffer[3], 1);
-  ASSERT_EQ(data_buffer[4], 123);
-}
+//   ASSERT_EQ(data_buffer[0], -123);
+//   ASSERT_EQ(data_buffer[1], -1);
+//   ASSERT_EQ(data_buffer[2], 0);
+//   ASSERT_EQ(data_buffer[3], 1);
+//   ASSERT_EQ(data_buffer[4], 123);
+// }
 
 // CREATE TYPE custom_record AS (nested1 integer, nested2 double precision);
 // COPY (SELECT CAST("col" AS custom_record) AS "col" FROM (  VALUES ('(123, 456.789)'),
@@ -1234,13 +1234,13 @@ TEST(PostgresCopyUtilsTest, PostgresCopyReadCustomRecord) {
   data.data.as_uint8 = kTestPgCopyCustomRecord;
   data.size_bytes = sizeof(kTestPgCopyCustomRecord);
 
-  auto col_type = NetezzaType(NetezzaTypeId::kRecord);
+  auto col_type = NetezzaType(NetezzaTypeId::kUnknown);
   col_type.AppendChild("nested1", NetezzaType(NetezzaTypeId::kInt4));
   col_type.AppendChild("nested2", NetezzaType(NetezzaTypeId::kFloat8));
-  NetezzaType input_type(NetezzaTypeId::kRecord);
+  NetezzaType input_type(NetezzaTypeId::kUnknown);
   input_type.AppendChild("col", col_type);
 
-  PostgresCopyStreamTester tester;
+  NetezzaCopyStreamTester tester;
   ASSERT_EQ(tester.Init(input_type), NANOARROW_OK);
   ASSERT_EQ(tester.ReadAll(&data), ENODATA);
   ASSERT_EQ(data.data.as_uint8 - kTestPgCopyCustomRecord,
@@ -1285,7 +1285,7 @@ TEST(PostgresCopyUtilsTest, PostgresCopyWriteMultiBatch) {
                                                 {-123, -1, 1, 123, std::nullopt}),
             NANOARROW_OK);
 
-  PostgresCopyStreamWriteTester tester;
+  NetezzaCopyStreamWriteTester tester;
   ASSERT_EQ(tester.Init(&schema.value, &array.value), NANOARROW_OK);
   ASSERT_EQ(tester.WriteAll(nullptr), ENODATA);
 

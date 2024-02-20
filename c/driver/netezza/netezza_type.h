@@ -28,7 +28,7 @@
 
 namespace adbcpq {
 
-// An enum of the types available in most Postgres pg_type tables
+// An enum of the types available in most Netezza pg_type tables
 enum class NetezzaTypeId {
   kBool = 16,
   kBytea,
@@ -71,21 +71,21 @@ enum class NetezzaTypeId {
 
 // Returns the receive function name as defined in the typrecieve column
 // of the pg_type table. This name is the one that gets used to look up
-// the PostgresTypeId.
+// the NetezzaTypeId.
 static inline const char* NetezzaTyprecv(NetezzaTypeId type_id);
 
-// Returns a likely typname value for a given PostgresTypeId. This is useful
+// Returns a likely typname value for a given NetezzaTypeId. This is useful
 // for testing and error messages but may not be the actual value present
 // in the pg_type typname column.
 static inline const char* NetezzaTypname(NetezzaTypeId type_id);
 
-// A vector of all type IDs, optionally including the nested types PostgresTypeId::ARRAY,
-// PostgresTypeId::DOMAIN_, PostgresTypeId::RECORD, and PostgresTypeId::RANGE.
+// A vector of all type IDs, optionally including the nested types NetezzaTypeId::ARRAY,
+// NetezzaTypeId::DOMAIN_, NetezzaTypeId::RECORD, and NetezzaTypeId::RANGE.
 static inline std::vector<NetezzaTypeId> NetezzaTypeIdAll(bool nested = true);
 
 class NetezzaTypeResolver;
 
-// An abstraction of a (potentially nested and/or parameterized) Postgres
+// An abstraction of a (potentially nested and/or parameterized) Netezza
 // data type. This class is where default type conversion to/from Arrow
 // is defined. It is intentionally copyable.
 class NetezzaType {
@@ -220,7 +220,7 @@ class NetezzaType {
       case NetezzaTypeId::kUnkbinary:
       default: {
         // For user-defined types or types we don't explicitly know how to deal with, we
-        // can still return the bytes postgres gives us and attach the type name as
+        // can still return the bytes netezza gives us and attach the type name as
         // metadata
         NANOARROW_RETURN_NOT_OK(ArrowSchemaSetType(schema, NANOARROW_TYPE_BINARY));
         nanoarrow::UniqueBuffer buffer;
@@ -253,7 +253,7 @@ class NetezzaType {
 // Because type information is stored in a database's pg_type table, it can't
 // truly be resolved until runtime; however, querying the database's pg_type table
 // for every result is unlikely to be reasonable. This class is a cache of information
-// from the pg_type table with appropriate lookup tables to resolve a PostgresType
+// from the pg_type table with appropriate lookup tables to resolve a NetezzaType
 // instance based on a oid (which is the information that libpq provides when
 // inspecting a result object). Types can be added/removed from the pg_type table
 // via SQL, so this cache may need to be periodically refreshed.
@@ -270,13 +270,13 @@ class NetezzaTypeResolver {
 
   NetezzaTypeResolver() : base_(AllBase()) {}
 
-  // Place a resolved copy of a PostgresType with the appropriate oid in type_out
+  // Place a resolved copy of a NetezzaType with the appropriate oid in type_out
   // if NANOARROW_OK is returned or place a null-terminated error message into error
   // otherwise.
   ArrowErrorCode Find(uint32_t oid, NetezzaType* type_out, ArrowError* error) const {
     auto result = mapping_.find(oid);
     if (result == mapping_.end()) {
-      ArrowErrorSet(error, "Postgres type with oid %ld not found",
+      ArrowErrorSet(error, "Netezza type with oid %ld not found",
                     static_cast<long>(oid));  // NOLINT(runtime/int)
       return EINVAL;
     }
@@ -289,7 +289,7 @@ class NetezzaTypeResolver {
                            ArrowError* error) const {
     auto array_oid_lookup = array_mapping_.find(child_oid);
     if (array_oid_lookup == array_mapping_.end()) {
-      ArrowErrorSet(error, "Postgres array type with child oid %ld not found",
+      ArrowErrorSet(error, "Netezza array type with child oid %ld not found",
                     static_cast<long>(child_oid));  // NOLINT(runtime/int)
       return EINVAL;
     }
@@ -353,7 +353,7 @@ class NetezzaTypeResolver {
     return NANOARROW_OK;
   }
 
-  // Insert a class definition. For the purposes of resolving a PostgresType
+  // Insert a class definition. For the purposes of resolving a NetezzaType
   // instance, this is simply a vector of field_name: oid tuples. The specified
   // OIDs need not have already been inserted into the type resolver. This
   // information can be found in the pg_attribute table (attname and atttypoid,
@@ -365,7 +365,7 @@ class NetezzaTypeResolver {
 
  private:
   std::unordered_map<uint32_t, NetezzaType> mapping_;
-  // We can't use PostgresTypeId as an unordered map key because there is no
+  // We can't use NetezzaTypeId as an unordered map key because there is no
   // built-in hasher for an enum on gcc 4.8 (i.e., R 3.6 on Windows).
   std::unordered_map<int32_t, uint32_t> reverse_mapping_;
   std::unordered_map<uint32_t, uint32_t> array_mapping_;
@@ -386,7 +386,7 @@ class NetezzaTypeResolver {
     return NANOARROW_OK;
   }
 
-  // Returns a sentinel PostgresType instance for each type and builds a lookup
+  // Returns a sentinel NetezzaType instance for each type and builds a lookup
   // table based on the receive function name.
   static std::unordered_map<std::string, NetezzaType> AllBase() {
     std::unordered_map<std::string, NetezzaType> out;
@@ -441,14 +441,14 @@ inline ArrowErrorCode NetezzaType::FromSchema(const NetezzaTypeResolver& resolve
       return NetezzaType::FromSchema(resolver, schema->dictionary, out, error);
 
     default:
-      ArrowErrorSet(error, "Can't map Arrow type '%s' to Postgres type",
+      ArrowErrorSet(error, "Can't map Arrow type '%s' to Netezza type",
                     ArrowTypeString(schema_view.type));
       return ENOTSUP;
   }
 }
 
 static inline const char* NetezzaTyprecv(NetezzaTypeId type_id) {
-  // TODO: Remove the (Postgres) datatypes which are not applicable.
+  // TODO: Remove the (Netezza) datatypes which are not applicable.
   switch (type_id) {
     case NetezzaTypeId::kBool:
       return "BOOLIN";
@@ -530,7 +530,7 @@ static inline const char* NetezzaTyprecv(NetezzaTypeId type_id) {
 }
 
 static inline const char* NetezzaTypname(NetezzaTypeId type_id) {
-  // TODO: Remove the (Postgres) datatypes which are not applicable.
+  // TODO: Remove the (Netezza) datatypes which are not applicable.
   switch (type_id) {
     case NetezzaTypeId::kBool:
       return "BOOL";

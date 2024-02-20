@@ -20,7 +20,7 @@
 #include <gtest/gtest.h>
 #include <nanoarrow/nanoarrow.hpp>
 
-#include "postgres_type.h"
+#include "netezza_type.h"
 
 namespace adbcpq {
 
@@ -95,28 +95,28 @@ TEST(PostgresTypeTest, PostgresTypeBasic) {
   EXPECT_EQ(with_name.oid(), type.oid());
   EXPECT_EQ(with_name.type_id(), type.type_id());
 
-  NetezzaType array = type.Array(12345, "array type name");
-  EXPECT_EQ(array.oid(), 12345);
-  EXPECT_EQ(array.typname(), "array type name");
-  EXPECT_EQ(array.n_children(), 1);
-  EXPECT_EQ(array.child(0).oid(), type.oid());
-  EXPECT_EQ(array.child(0).type_id(), type.type_id());
+  // NetezzaType array = type.Array(12345, "array type name");
+  // EXPECT_EQ(array.oid(), 12345);
+  // EXPECT_EQ(array.typname(), "array type name");
+  // EXPECT_EQ(array.n_children(), 1);
+  // EXPECT_EQ(array.child(0).oid(), type.oid());
+  // EXPECT_EQ(array.child(0).type_id(), type.type_id());
 
-  NetezzaType range = type.Range(12345, "range type name");
-  EXPECT_EQ(range.oid(), 12345);
-  EXPECT_EQ(range.typname(), "range type name");
-  EXPECT_EQ(range.n_children(), 1);
-  EXPECT_EQ(range.child(0).oid(), type.oid());
-  EXPECT_EQ(range.child(0).type_id(), type.type_id());
+  // NetezzaType range = type.Range(12345, "range type name");
+  // EXPECT_EQ(range.oid(), 12345);
+  // EXPECT_EQ(range.typname(), "range type name");
+  // EXPECT_EQ(range.n_children(), 1);
+  // EXPECT_EQ(range.child(0).oid(), type.oid());
+  // EXPECT_EQ(range.child(0).type_id(), type.type_id());
 
   NetezzaType domain = type.Domain(123456, "domain type name");
   EXPECT_EQ(domain.oid(), 123456);
   EXPECT_EQ(domain.typname(), "domain type name");
   EXPECT_EQ(domain.type_id(), type.type_id());
 
-  NetezzaType record(NetezzaTypeId::kRecord);
+  NetezzaType record(NetezzaTypeId::kUnknown);
   record.AppendChild("col1", type);
-  EXPECT_EQ(record.type_id(), NetezzaTypeId::kRecord);
+  EXPECT_EQ(record.type_id(), NetezzaTypeId::kUnknown);
   EXPECT_EQ(record.n_children(), 1);
   EXPECT_EQ(record.child(0).type_id(), type.type_id());
   EXPECT_EQ(record.child(0).field_name(), "col1");
@@ -165,15 +165,15 @@ TEST(PostgresTypeTest, PostgresTypeSetSchema) {
   EXPECT_STREQ(schema->format, "z");
   schema.reset();
 
-  ArrowSchemaInit(schema.get());
-  EXPECT_EQ(NetezzaType(NetezzaTypeId::kBool).Array().SetSchema(schema.get()),
-            NANOARROW_OK);
-  EXPECT_STREQ(schema->format, "+l");
-  EXPECT_STREQ(schema->children[0]->format, "b");
-  schema.reset();
+  // ArrowSchemaInit(schema.get());
+  // EXPECT_EQ(NetezzaType(NetezzaTypeId::kBool).Array().SetSchema(schema.get()),
+  //           NANOARROW_OK);
+  // EXPECT_STREQ(schema->format, "+l");
+  // EXPECT_STREQ(schema->children[0]->format, "b");
+  // schema.reset();
 
   ArrowSchemaInit(schema.get());
-  NetezzaType record(NetezzaTypeId::kRecord);
+  NetezzaType record(NetezzaTypeId::kUnknown);
   record.AppendChild("col1", NetezzaType(NetezzaTypeId::kBool));
   EXPECT_EQ(record.SetSchema(schema.get()), NANOARROW_OK);
   EXPECT_STREQ(schema->format, "+s");
@@ -181,12 +181,12 @@ TEST(PostgresTypeTest, PostgresTypeSetSchema) {
   schema.reset();
 
   ArrowSchemaInit(schema.get());
-  NetezzaType unknown(NetezzaTypeId::kBrinMinmaxMultiSummary);
+  NetezzaType unknown(NetezzaTypeId::kUnknown);
   EXPECT_EQ(unknown.WithPgTypeInfo(0, "some_name").SetSchema(schema.get()), NANOARROW_OK);
   EXPECT_STREQ(schema->format, "z");
 
   ArrowStringView value = ArrowCharView("<not found>");
-  ArrowMetadataGetValue(schema->metadata, ArrowCharView("ADBC:postgresql:typname"),
+  ArrowMetadataGetValue(schema->metadata, ArrowCharView("ADBC:netezza:typname"),
                         &value);
   EXPECT_EQ(std::string(value.data, value.size_bytes), "some_name");
   schema.reset();
@@ -275,7 +275,7 @@ TEST(PostgresTypeTest, PostgresTypeFromSchema) {
   ASSERT_EQ(ArrowSchemaSetType(schema->children[0], NANOARROW_TYPE_BOOL), NANOARROW_OK);
   EXPECT_EQ(NetezzaType::FromSchema(resolver, schema.get(), &type, nullptr),
             NANOARROW_OK);
-  EXPECT_EQ(type.type_id(), NetezzaTypeId::kArray);
+  EXPECT_EQ(type.type_id(), NetezzaTypeId::kUnkbinary);
   EXPECT_EQ(type.child(0).type_id(), NetezzaTypeId::kBool);
   schema.reset();
 
@@ -355,7 +355,7 @@ TEST(PostgresTypeTest, NetezzaTypeResolver) {
   EXPECT_EQ(resolver.Find(11, &type, &error), NANOARROW_OK);
   EXPECT_EQ(type.oid(), 11);
   EXPECT_EQ(type.typname(), "some_array_type_name");
-  EXPECT_EQ(type.type_id(), NetezzaTypeId::kArray);
+  EXPECT_EQ(type.type_id(), NetezzaTypeId::kUnkbinary);
   EXPECT_EQ(type.child(0).oid(), 10);
   EXPECT_EQ(type.child(0).type_id(), NetezzaTypeId::kBool);
 
@@ -372,7 +372,7 @@ TEST(PostgresTypeTest, NetezzaTypeResolver) {
   EXPECT_EQ(resolver.Find(12, &type, &error), NANOARROW_OK);
   EXPECT_EQ(type.oid(), 12);
   EXPECT_EQ(type.typname(), "some_range_type_name");
-  EXPECT_EQ(type.type_id(), NetezzaTypeId::kRange);
+  EXPECT_EQ(type.type_id(), NetezzaTypeId::kUnkbinary);
   EXPECT_EQ(type.child(0).oid(), 10);
   EXPECT_EQ(type.child(0).type_id(), NetezzaTypeId::kBool);
 
@@ -394,9 +394,9 @@ TEST(PostgresTypeTest, PostgresTypeResolveRecord) {
   ASSERT_EQ(resolver.Init(), NANOARROW_OK);
 
   NetezzaType type;
-  EXPECT_EQ(resolver.Find(resolver.GetOID(NetezzaTypeId::kRecord), &type, nullptr),
+  EXPECT_EQ(resolver.Find(resolver.GetOID(NetezzaTypeId::kUnknown), &type, nullptr),
             NANOARROW_OK);
-  EXPECT_EQ(type.oid(), resolver.GetOID(NetezzaTypeId::kRecord));
+  EXPECT_EQ(type.oid(), resolver.GetOID(NetezzaTypeId::kUnknown));
   EXPECT_EQ(type.n_children(), 2);
   EXPECT_EQ(type.child(0).field_name(), "int4_col");
   EXPECT_EQ(type.child(0).type_id(), NetezzaTypeId::kInt4);

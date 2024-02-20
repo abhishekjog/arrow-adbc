@@ -17,7 +17,7 @@
 
 #include "error.h"
 
-#include <postgres_ext.h>
+#include <postgres_ext.h>  // from nz_include.
 #include <stdarg.h>
 #include <cstring>
 #include <string>
@@ -48,7 +48,6 @@ AdbcStatusCode SetError(struct AdbcError* error, PGresult* result, const char* f
 
   const char* sqlstate = PQresStatus(PQresultStatus(result));
   if (sqlstate) {
-    // https://www.postgresql.org/docs/current/errcodes-appendix.html
     // This can be extended in the future
     if (std::strcmp(sqlstate, "57014") == 0) {
       code = ADBC_STATUS_CANCELLED;

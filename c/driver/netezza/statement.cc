@@ -39,9 +39,9 @@
 #include "common/utils.h"
 #include "connection.h"
 #include "error.h"
-#include "postgres_copy_reader.h"
-#include "postgres_type.h"
-#include "postgres_util.h"
+#include "netezza_copy_reader.h"
+#include "netezza_type.h"
+#include "netezza_util.h"
 #include "result_helper.h"
 #include <string>
 #include <bits/stdc++.h>
@@ -83,7 +83,7 @@ struct OneValueStream {
   }
 };
 
-/// Build an PostgresType object from a PGresult*
+/// Build an NetezzaType object from a PGresult*
 AdbcStatusCode ResolveNetezzaType(const NetezzaTypeResolver& type_resolver,
                                    PGresult* result, NetezzaType* out,
                                    struct AdbcError* error) {
@@ -420,17 +420,17 @@ struct BindStream {
             }
             case ArrowType::NANOARROW_TYPE_DATE32: {
               // 2000-01-01
-              constexpr int32_t kPostgresDateEpoch = 10957;
+              constexpr int32_t kNetezzaDateEpoch = 10957;
               const int32_t raw_value =
                   array_view->children[col]->buffer_views[1].data.as_int32[row];
-              if (raw_value < INT32_MIN + kPostgresDateEpoch) {
+              if (raw_value < INT32_MIN + kNetezzaDateEpoch) {
                 SetError(error, "[libpq] Field #%" PRId64 "%s%s%s%" PRId64 "%s", col + 1,
                          "('", bind_schema->children[col]->name, "') Row #", row + 1,
-                         "has value which exceeds postgres date limits");
+                         "has value which exceeds netezza date limits");
                 return ADBC_STATUS_INVALID_ARGUMENT;
               }
 
-              const uint32_t value = ToNetworkInt32(raw_value - kPostgresDateEpoch);
+              const uint32_t value = ToNetworkInt32(raw_value - kNetezzaDateEpoch);
               std::memcpy(param_values[col], &value, sizeof(int32_t));
               break;
             }
@@ -473,7 +473,7 @@ struct BindStream {
                 return ADBC_STATUS_INVALID_ARGUMENT;
               }
 
-              if (val < std::numeric_limits<int64_t>::min() + kPostgresTimestampEpoch) {
+              if (val < std::numeric_limits<int64_t>::min() + kNetezzaTimestampEpoch) {
                 SetError(error,
                          "[libpq] Field #%" PRId64 " ('%s') Row #%" PRId64
                          " has value '%" PRIi64 "' which would underflow",
@@ -483,11 +483,11 @@ struct BindStream {
               }
 
               if (bind_schema_fields[col].type == ArrowType::NANOARROW_TYPE_TIMESTAMP) {
-                const uint64_t value = ToNetworkInt64(val - kPostgresTimestampEpoch);
+                const uint64_t value = ToNetworkInt64(val - kNetezzaTimestampEpoch);
                 std::memcpy(param_values[col], &value, sizeof(int64_t));
               } else if (bind_schema_fields[col].type ==
                          ArrowType::NANOARROW_TYPE_DURATION) {
-                // postgres stores an interval as a 64 bit offset in microsecond
+                // netezza stores an interval as a 64 bit offset in microsecond
                 // resolution alongside a 32 bit day and 32 bit month
                 // for now we just send 0 for the day / month values
                 const uint64_t value = ToNetworkInt64(val);
@@ -568,7 +568,7 @@ struct BindStream {
                              struct AdbcError* error) {
     if (rows_affected) *rows_affected = 0;
 
-    PostgresCopyStreamWriter writer;
+    NetezzaCopyStreamWriter writer;
     CHECK_NA(INTERNAL, writer.Init(&bind_schema.value), error);
     CHECK_NA(INTERNAL, writer.InitFieldWriters(nullptr), error);
 
@@ -983,20 +983,20 @@ void TupleReader::ReleaseTrampoline(struct ArrowArrayStream* self) {
   self->release = nullptr;
 }
 
-AdbcStatusCode PostgresStatement::New(struct AdbcConnection* connection,
+AdbcStatusCode NetezzaStatement::New(struct AdbcConnection* connection,
                                       struct AdbcError* error) {
   if (!connection || !connection->private_data) {
     SetError(error, "%s", "[libpq] Must provide an initialized AdbcConnection");
     return ADBC_STATUS_INVALID_ARGUMENT;
   }
   connection_ =
-      *reinterpret_cast<std::shared_ptr<PostgresConnection>*>(connection->private_data);
+      *reinterpret_cast<std::shared_ptr<NetezzaConnection>*>(connection->private_data);
   type_resolver_ = connection_->type_resolver();
   reader_.conn_ = connection_->conn();
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::Bind(struct ArrowArray* values,
+AdbcStatusCode NetezzaStatement::Bind(struct ArrowArray* values,
                                        struct ArrowSchema* schema,
                                        struct AdbcError* error) {
   if (!values || !values->release) {
@@ -1019,7 +1019,7 @@ AdbcStatusCode PostgresStatement::Bind(struct ArrowArray* values,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::Bind(struct ArrowArrayStream* stream,
+AdbcStatusCode NetezzaStatement::Bind(struct ArrowArrayStream* stream,
                                        struct AdbcError* error) {
   if (!stream || !stream->release) {
     SetError(error, "%s", "[libpq] Must provide non-NULL stream");
@@ -1032,12 +1032,12 @@ AdbcStatusCode PostgresStatement::Bind(struct ArrowArrayStream* stream,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::Cancel(struct AdbcError* error) {
+AdbcStatusCode NetezzaStatement::Cancel(struct AdbcError* error) {
   // Ultimately the same underlying PGconn
   return connection_->Cancel(error);
 }
 
-AdbcStatusCode PostgresStatement::CreateBulkTable(
+AdbcStatusCode NetezzaStatement::CreateBulkTable(
     const std::string& current_schema, const struct ArrowSchema& source_schema,
     const std::vector<struct ArrowSchemaView>& source_schema_fields,
     std::string* escaped_table, std::string* escaped_field_list,
@@ -1236,7 +1236,7 @@ AdbcStatusCode PostgresStatement::CreateBulkTable(
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::ExecutePreparedStatement(
+AdbcStatusCode NetezzaStatement::ExecutePreparedStatement(
     struct ArrowArrayStream* stream, int64_t* rows_affected, struct AdbcError* error) {
   if (!bind_.release) {
     // TODO: set an empty stream just to unify the code paths
@@ -1262,7 +1262,7 @@ AdbcStatusCode PostgresStatement::ExecutePreparedStatement(
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::ExecuteQuery(struct ArrowArrayStream* stream,
+AdbcStatusCode NetezzaStatement::ExecuteQuery(struct ArrowArrayStream* stream,
                                                int64_t* rows_affected,
                                                struct AdbcError* error) {
   ClearResult();
@@ -1312,7 +1312,7 @@ AdbcStatusCode PostgresStatement::ExecuteQuery(struct ArrowArrayStream* stream,
       return ADBC_STATUS_OK;
     }
 
-    // This resolves the reader specific to each PostgresType -> ArrowSchema
+    // This resolves the reader specific to each NetezzaType -> ArrowSchema
     // conversion. It is unlikely that this will fail given that we have just
     // inferred these conversions ourselves.
     struct ArrowError na_error;
@@ -1346,7 +1346,7 @@ AdbcStatusCode PostgresStatement::ExecuteQuery(struct ArrowArrayStream* stream,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::ExecuteSchema(struct ArrowSchema* schema,
+AdbcStatusCode NetezzaStatement::ExecuteSchema(struct ArrowSchema* schema,
                                                 struct AdbcError* error) {
   ClearResult();
   if (query_.empty()) {
@@ -1363,7 +1363,7 @@ AdbcStatusCode PostgresStatement::ExecuteSchema(struct ArrowSchema* schema,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::ExecuteUpdateBulk(int64_t* rows_affected,
+AdbcStatusCode NetezzaStatement::ExecuteUpdateBulk(int64_t* rows_affected,
                                                     struct AdbcError* error) {
   if (!bind_.release) {
     SetError(error, "%s", "[libpq] Must Bind() before Execute() for bulk ingestion");
@@ -1417,7 +1417,7 @@ AdbcStatusCode PostgresStatement::ExecuteUpdateBulk(int64_t* rows_affected,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::ExecuteUpdateQuery(int64_t* rows_affected,
+AdbcStatusCode NetezzaStatement::ExecuteUpdateQuery(int64_t* rows_affected,
                                                      struct AdbcError* error) {
   // NOTE: must prepare first (used in ExecuteQuery)
   PGresult* result =
@@ -1448,7 +1448,7 @@ AdbcStatusCode PostgresStatement::ExecuteUpdateQuery(int64_t* rows_affected,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::GetOption(const char* key, char* value, size_t* length,
+AdbcStatusCode NetezzaStatement::GetOption(const char* key, char* value, size_t* length,
                                             struct AdbcError* error) {
   std::string result;
   if (std::strcmp(key, ADBC_INGEST_OPTION_TARGET_TABLE) == 0) {
@@ -1484,20 +1484,20 @@ AdbcStatusCode PostgresStatement::GetOption(const char* key, char* value, size_t
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::GetOptionBytes(const char* key, uint8_t* value,
+AdbcStatusCode NetezzaStatement::GetOptionBytes(const char* key, uint8_t* value,
                                                  size_t* length,
                                                  struct AdbcError* error) {
   SetError(error, "[libpq] Unknown statement option '%s'", key);
   return ADBC_STATUS_NOT_FOUND;
 }
 
-AdbcStatusCode PostgresStatement::GetOptionDouble(const char* key, double* value,
+AdbcStatusCode NetezzaStatement::GetOptionDouble(const char* key, double* value,
                                                   struct AdbcError* error) {
   SetError(error, "[libpq] Unknown statement option '%s'", key);
   return ADBC_STATUS_NOT_FOUND;
 }
 
-AdbcStatusCode PostgresStatement::GetOptionInt(const char* key, int64_t* value,
+AdbcStatusCode NetezzaStatement::GetOptionInt(const char* key, int64_t* value,
                                                struct AdbcError* error) {
   std::string result;
   if (std::strcmp(key, ADBC_NETEZZA_OPTION_BATCH_SIZE_HINT_BYTES) == 0) {
@@ -1508,12 +1508,12 @@ AdbcStatusCode PostgresStatement::GetOptionInt(const char* key, int64_t* value,
   return ADBC_STATUS_NOT_FOUND;
 }
 
-AdbcStatusCode PostgresStatement::GetParameterSchema(struct ArrowSchema* schema,
+AdbcStatusCode NetezzaStatement::GetParameterSchema(struct ArrowSchema* schema,
                                                      struct AdbcError* error) {
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresStatement::Prepare(struct AdbcError* error) {
+AdbcStatusCode NetezzaStatement::Prepare(struct AdbcError* error) {
   if (query_.empty()) {
     SetError(error, "%s", "[libpq] Must SetSqlQuery() before Prepare()");
     return ADBC_STATUS_INVALID_STATE;
@@ -1525,7 +1525,7 @@ AdbcStatusCode PostgresStatement::Prepare(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::Release(struct AdbcError* error) {
+AdbcStatusCode NetezzaStatement::Release(struct AdbcError* error) {
   ClearResult();
   if (bind_.release) {
     bind_.release(&bind_);
@@ -1533,7 +1533,7 @@ AdbcStatusCode PostgresStatement::Release(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::SetSqlQuery(const char* query,
+AdbcStatusCode NetezzaStatement::SetSqlQuery(const char* query,
                                               struct AdbcError* error) {
   ingest_.target.clear();
   ingest_.db_schema.clear();
@@ -1542,7 +1542,7 @@ AdbcStatusCode PostgresStatement::SetSqlQuery(const char* query,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::SetOption(const char* key, const char* value,
+AdbcStatusCode NetezzaStatement::SetOption(const char* key, const char* value,
                                             struct AdbcError* error) {
   if (std::strcmp(key, ADBC_INGEST_OPTION_TARGET_TABLE) == 0) {
     query_.clear();
@@ -1598,19 +1598,19 @@ AdbcStatusCode PostgresStatement::SetOption(const char* key, const char* value,
   return ADBC_STATUS_OK;
 }
 
-AdbcStatusCode PostgresStatement::SetOptionBytes(const char* key, const uint8_t* value,
+AdbcStatusCode NetezzaStatement::SetOptionBytes(const char* key, const uint8_t* value,
                                                  size_t length, struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown statement option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresStatement::SetOptionDouble(const char* key, double value,
+AdbcStatusCode NetezzaStatement::SetOptionDouble(const char* key, double value,
                                                   struct AdbcError* error) {
   SetError(error, "%s%s", "[libpq] Unknown statement option ", key);
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresStatement::SetOptionInt(const char* key, int64_t value,
+AdbcStatusCode NetezzaStatement::SetOptionInt(const char* key, int64_t value,
                                                struct AdbcError* error) {
   if (std::strcmp(key, ADBC_NETEZZA_OPTION_BATCH_SIZE_HINT_BYTES) == 0) {
     if (value <= 0) {
@@ -1625,7 +1625,7 @@ AdbcStatusCode PostgresStatement::SetOptionInt(const char* key, int64_t value,
   return ADBC_STATUS_NOT_IMPLEMENTED;
 }
 
-AdbcStatusCode PostgresStatement::SetupReader(struct AdbcError* error) {
+AdbcStatusCode NetezzaStatement::SetupReader(struct AdbcError* error) {
   // TODO: we should pipeline here and assume this will succeed
   PGresult* result;
   if ((query_.rfind("SELECT", 0) == 0) || query_.rfind("select", 0) == 0) {
@@ -1663,7 +1663,7 @@ AdbcStatusCode PostgresStatement::SetupReader(struct AdbcError* error) {
   //   return code;
   // }
 
-  // Resolve the information from the PGresult into a PostgresType
+  // Resolve the information from the PGresult into a NetezzaType
   NetezzaType root_type;
   AdbcStatusCode status = ResolveNetezzaType(*type_resolver_, result, &root_type, error);
   PQclear(result);
@@ -1671,7 +1671,7 @@ AdbcStatusCode PostgresStatement::SetupReader(struct AdbcError* error) {
 
   // Initialize the copy reader and infer the output schema (i.e., error for
   // unsupported types before issuing the COPY query)
-  reader_.copy_reader_.reset(new PostgresCopyStreamReader());
+  reader_.copy_reader_.reset(new NetezzaCopyStreamReader());
   reader_.copy_reader_->Init(root_type);
   struct ArrowError na_error;
   int na_res = reader_.copy_reader_->InferOutputSchema(&na_error);
@@ -1683,7 +1683,7 @@ AdbcStatusCode PostgresStatement::SetupReader(struct AdbcError* error) {
   return ADBC_STATUS_OK;
 }
 
-void PostgresStatement::ClearResult() {
+void NetezzaStatement::ClearResult() {
   // TODO: we may want to synchronize here for safety
   reader_.Release();
 }
